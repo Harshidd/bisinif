@@ -8,12 +8,60 @@ import { Button } from './ui/Button'
 import { Alert, AlertDescription } from './ui/Alert'
 import { AlertCircle, AlertTriangle, Divide, Calculator, ArrowRight } from 'lucide-react'
 
-const ConfigurationStep = ({ config, onConfigChange, onNext }) => {
+const toNumber = (value) => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number.parseFloat(value)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+  return 0
+}
+
+const buildDefaultQuestions = (count, outcomes) => {
+  const defaultOutcomeId = outcomes.length > 0 ? '0' : null
+  return Array.from({ length: count }).map((_, index) => ({
+    qNo: index + 1,
+    maxScore: 1,
+    outcomeId: defaultOutcomeId,
+  }))
+}
+
+const normalizeQuestions = (count, existingQuestions, outcomes) => {
+  const outcomeIds = new Set(outcomes.map((_, index) => String(index)))
+  if (count <= 0) return []
+  return Array.from({ length: count }).map((_, index) => {
+    const existing = existingQuestions[index]
+    let outcomeId = existing?.outcomeId ?? (outcomes.length > 0 ? '0' : null)
+    if (outcomeId !== null && outcomeId !== '' && !outcomeIds.has(String(outcomeId))) {
+      outcomeId = null
+    }
+    return {
+      qNo: index + 1,
+      maxScore: Number.isFinite(toNumber(existing?.maxScore)) ? toNumber(existing?.maxScore) : 1,
+      outcomeId,
+    }
+  })
+}
+
+const areQuestionsEqual = (a, b) => {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i].qNo !== b[i].qNo) return false
+    if (toNumber(a[i].maxScore) !== toNumber(b[i].maxScore)) return false
+    const aOutcome = a[i].outcomeId ?? null
+    const bOutcome = b[i].outcomeId ?? null
+    if (String(aOutcome) !== String(bOutcome)) return false
+  }
+  return true
+}
+
+const ConfigurationStep = ({ config, questions = [], onQuestionsChange, onConfigChange, onNext }) => {
   const [errors, setErrors] = useState({})
   const [outcomeTexts, setOutcomeTexts] = useState(config.outcomes || [])
   const [outcomeScores, setOutcomeScores] = useState(config.outcomeScores || [])
   const [showDistributeModal, setShowDistributeModal] = useState(false)
   const [targetScore, setTargetScore] = useState(100)
+  const [questionCount, setQuestionCount] = useState(questions.length || 0)
   const profile = {
     il: config.city ?? '',
     ilce: config.district ?? '',
@@ -53,6 +101,19 @@ const ConfigurationStep = ({ config, onConfigChange, onNext }) => {
     }
   }, [config.outcomeCount])
 
+  useEffect(() => {
+    const normalized = normalizeQuestions(questionCount, questions, config.outcomes || [])
+    if (!areQuestionsEqual(normalized, questions)) {
+      onQuestionsChange(normalized)
+    }
+  }, [questionCount, questions, config.outcomes, onQuestionsChange])
+
+  useEffect(() => {
+    if (questions.length !== questionCount) {
+      setQuestionCount(questions.length)
+    }
+  }, [questions.length])
+
   const handleOutcomeCountChange = (e) => {
     const count = parseInt(e.target.value) || 0
     onConfigChange({ outcomeCount: count })
@@ -73,6 +134,44 @@ const ConfigurationStep = ({ config, onConfigChange, onNext }) => {
     newScores[index] = score
     setOutcomeScores(newScores)
     onConfigChange({ outcomeScores: newScores })
+  }
+
+  const handleQuestionCountChange = (value) => {
+    const parsed = parseInt(value, 10)
+    setQuestionCount(Number.isFinite(parsed) ? parsed : 0)
+  }
+
+  const handleQuestionChange = (index, field, value) => {
+    const next = [...questions]
+    const question = next[index]
+    if (!question) return
+    const nextValue = field === 'maxScore' ? toNumber(value) : (value === '' ? null : value)
+    next[index] = {
+      ...question,
+      [field]: nextValue,
+    }
+    onQuestionsChange(next)
+  }
+
+  const handleAutoDistributeQuestions = () => {
+    if (questionCount <= 0) return
+    const baseQuestions = normalizeQuestions(questionCount, questions, config.outcomes || [])
+    const perQuestion = 100 / questionCount
+    let runningSum = 0
+    const next = baseQuestions.map((question, index) => {
+      const value = index === questionCount - 1
+        ? 100 - runningSum
+        : perQuestion
+      const rounded = Number(value.toFixed(2))
+      if (index < questionCount - 1) {
+        runningSum += rounded
+      }
+      return {
+        ...question,
+        maxScore: rounded,
+      }
+    })
+    onQuestionsChange(next)
   }
 
   const handleAutoDistribute = () => {
@@ -96,6 +195,7 @@ const ConfigurationStep = ({ config, onConfigChange, onNext }) => {
   }
 
   const totalScore = outcomeScores.reduce((sum, score) => sum + (score || 0), 0)
+  const questionTotalScore = questions.reduce((sum, question) => sum + toNumber(question.maxScore), 0)
 
   useEffect(() => {
     onConfigChange({ totalScore })
@@ -534,6 +634,86 @@ const ConfigurationStep = ({ config, onConfigChange, onNext }) => {
                   </Alert>
                 )}
               </>
+            )}
+          </div>
+
+          {/* Exam Blueprint Section */}
+          <div className="pt-8 border-t border-gray-100">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Soru Blueprint</h3>
+                <p className="text-sm text-gray-500">Soru sayısı ve kazanım eşleştirmesi</p>
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleAutoDistributeQuestions}
+                disabled={questionCount <= 0}
+              >
+                100'e Eşit Dağıt
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="space-y-2">
+                <Label htmlFor="questionCount" className="text-gray-600">Soru Sayısı</Label>
+                <Input
+                  id="questionCount"
+                  type="number"
+                  min="0"
+                  value={questionCount}
+                  onChange={(e) => handleQuestionCountChange(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-gray-600">Toplam Puan</Label>
+                <div className="h-10 flex items-center px-3 rounded-lg bg-gray-50 text-gray-700 font-semibold">
+                  {questionTotalScore.toFixed(2)}
+                </div>
+              </div>
+            </div>
+
+            {questionCount > 0 && questionTotalScore !== 100 && (
+              <Alert className="bg-amber-50 border-amber-200 mb-4">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-700 text-sm">
+                  Toplam puan 100 değil. (Şu an: {questionTotalScore.toFixed(2)})
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {questionCount > 0 && (
+              <div className="space-y-3">
+                {questions.map((question, index) => (
+                  <div
+                    key={question.qNo}
+                    className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center p-3 rounded-2xl bg-gray-50"
+                  >
+                    <div className="text-sm font-medium text-gray-700">
+                      Q{question.qNo}
+                    </div>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={question.maxScore ?? 0}
+                      onChange={(e) => handleQuestionChange(index, 'maxScore', e.target.value)}
+                      className="text-center"
+                    />
+                    <Select
+                      value={question.outcomeId ?? ''}
+                      onChange={(e) => handleQuestionChange(index, 'outcomeId', e.target.value)}
+                    >
+                      <option value="">Kazanım Seçin</option>
+                      {config.outcomes.map((outcome, outcomeIndex) => (
+                        <option key={outcomeIndex} value={String(outcomeIndex)}>
+                          K{outcomeIndex + 1} - {outcome}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </CardContent>

@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import ConfigurationStep from './components/ConfigurationStep'
-import ExcelUploader from './components/ExcelUploader'
-import GradingTable from './components/GradingTable'
+import GeneralInfoStep from './components/GeneralInfoStep'
+import SetupAndGradesStep from './components/SetupAndGradesStep'
 import AnalysisDashboard from './components/AnalysisDashboard'
 import WelcomeModal from './components/WelcomeModal'
 import { Button } from './components/ui/Button'
@@ -81,6 +80,7 @@ function App() {
     ...DEFAULT_CONFIG,
     ...mapProfileToConfig(PROFILE_DEFAULT),
   }))
+  const [questions, setQuestions] = useState([])
   const [students, setStudents] = useState([])
   const [grades, setGrades] = useState({})
   const [bannerMessage, setBannerMessage] = useState('')
@@ -114,6 +114,7 @@ function App() {
         ...mapProfileToConfig(safeProfile),
         ...projectState.config,
       })
+      setQuestions(projectState.questions || [])
       setStudents(projectState.students || [])
       setGrades(projectState.grades || {})
       setCurrentStep(projectState.currentStep || 1)
@@ -124,6 +125,7 @@ function App() {
       ...DEFAULT_CONFIG,
       ...mapProfileToConfig(safeProfile),
     })
+    setQuestions([])
     setStudents([])
     setGrades({})
     setCurrentStep(1)
@@ -159,6 +161,7 @@ function App() {
       const projectSaved = saveProjectState({
         currentStep,
         config,
+        questions,
         students,
         grades,
       })
@@ -167,7 +170,7 @@ function App() {
       }
     }, 500)
     return () => clearTimeout(timer)
-  }, [currentStep, config, students, grades])
+  }, [currentStep, config, questions, students, grades])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -183,16 +186,12 @@ function App() {
     setConfig((prev) => ({ ...prev, ...updates }))
   }, [])
 
-  const handleStudentsImported = useCallback((importedStudents) => {
-    setStudents(importedStudents)
-  }, [])
-
   const handleGradesChange = useCallback((newGrades) => {
     setGrades(newGrades)
   }, [])
 
   const handleEditGrades = useCallback(() => {
-    setCurrentStep(3)
+    setCurrentStep(2)
   }, [])
 
   // Yeni analiz - tüm veriyi sıfırla
@@ -200,6 +199,7 @@ function App() {
     const latestProfileMeta = loadProfileMeta()
     const latestProfile = normalizeProfile(latestProfileMeta.data || PROFILE_DEFAULT)
     setConfig({ ...DEFAULT_CONFIG, ...mapProfileToConfig(latestProfile) })
+    setQuestions([])
     setStudents([])
     setGrades({})
     setCurrentStep(1)
@@ -214,10 +214,9 @@ function App() {
   }, [currentStep])
 
   const steps = [
-    { number: 1, title: 'Ayarlar' },
-    { number: 2, title: 'Öğrenciler' },
-    { number: 3, title: 'Notlar' },
-    { number: 4, title: 'Analiz' },
+    { number: 1, title: 'Genel Bilgiler' },
+    { number: 2, title: 'Sınav Kurulumu & Not Girişi' },
+    { number: 3, title: 'Analiz & Rapor' },
   ]
 
   return (
@@ -290,7 +289,7 @@ function App() {
             </nav>
 
             {/* Sağ: Yeni Analiz */}
-            {currentStep === 4 ? (
+            {currentStep === 5 ? (
               <Button
                 onClick={handleNewAnalysis}
                 variant="ghost"
@@ -327,7 +326,7 @@ function App() {
       <main className="flex-1">
         <div className="container mx-auto px-4 lg:px-8 py-8 md:py-12">
           {currentStep === 1 && (
-            <ConfigurationStep
+            <GeneralInfoStep
               config={config}
               onConfigChange={handleConfigChange}
               onNext={() => setCurrentStep(2)}
@@ -335,28 +334,24 @@ function App() {
           )}
 
           {currentStep === 2 && (
-            <ExcelUploader
-              onStudentsImported={handleStudentsImported}
-              onNext={() => setCurrentStep(3)}
+            <SetupAndGradesStep
+              config={config}
+              questions={questions}
+              onQuestionsChange={setQuestions}
+              students={students}
+              onStudentsChange={setStudents}
+              grades={grades}
               onBack={handleBack}
-              existingStudents={students}
+              onConfigChange={handleConfigChange}
+              onGradesChange={handleGradesChange}
+              onNext={() => setCurrentStep(3)}
             />
           )}
 
           {currentStep === 3 && (
-            <GradingTable
-              config={config}
-              students={students}
-              grades={grades}
-              onGradesChange={handleGradesChange}
-              onNext={() => setCurrentStep(4)}
-              onBack={handleBack}
-            />
-          )}
-
-          {currentStep === 4 && (
             <AnalysisDashboard
               config={config}
+              questions={questions}
               students={students}
               grades={grades}
               onBack={handleBack}
@@ -385,3 +380,13 @@ function App() {
 }
 
 export default App
+
+
+
+
+
+
+
+
+
+

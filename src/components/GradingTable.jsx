@@ -5,7 +5,7 @@ import { Button } from './ui/Button'
 import { Alert, AlertDescription } from './ui/Alert'
 import { CheckCircle2, XCircle, AlertTriangle, AlertCircle, Zap, Calculator } from 'lucide-react'
 
-const GradingTable = ({ config, students, grades: existingGrades, onGradesChange, onNext, onBack }) => {
+const GradingTable = ({ config, questions = [], students, grades: existingGrades, onGradesChange, onNext, onBack, showNavigation = true }) => {
   const [grades, setGrades] = useState({})
   const [warnings, setWarnings] = useState({})
   const [totalInputWarnings, setTotalInputWarnings] = useState({})
@@ -14,7 +14,7 @@ const GradingTable = ({ config, students, grades: existingGrades, onGradesChange
   const [totalInputValues, setTotalInputValues] = useState({})
 
   // Dinamik maksimum toplam puan (kazanımların toplamı)
-  const maxTotalScore = config.outcomeScores?.reduce((sum, score) => sum + score, 0) || 100
+  const maxTotalScore = questions.reduce((sum, question) => sum + (Number(question.maxScore) || 0), 0) || 0
   
   // YENİ: Genel geçme puanı (mutlak değer) kullan
   const generalPassingScore = config.generalPassingScore ?? 50
@@ -32,14 +32,15 @@ const GradingTable = ({ config, students, grades: existingGrades, onGradesChange
       if (!initialGrades[student.id]) {
         initialGrades[student.id] = {}
       }
-      config.outcomes.forEach((_, index) => {
-        if (initialGrades[student.id][index] === undefined) {
-          initialGrades[student.id][index] = ''
+      questions.forEach((question) => {
+        const key = question.qNo
+        if (initialGrades[student.id][key] === undefined) {
+          initialGrades[student.id][key] = ''
         }
       })
     })
     setGrades(initialGrades)
-  }, [students, config.outcomes, existingGrades])
+  }, [students, questions, existingGrades])
 
   // Öğrencinin toplam puanını hesapla
   const calculateTotal = (studentId) => {
@@ -54,14 +55,18 @@ const GradingTable = ({ config, students, grades: existingGrades, onGradesChange
     return total
   }
 
+  const classAverage = students.length > 0
+    ? students.reduce((sum, student) => sum + calculateTotal(student.id), 0) / students.length
+    : 0
+
   // ================ PARÇADAN BÜTÜNE (K1, K2... -> Toplam) ================
-  const handleGradeChange = (studentId, outcomeIndex, value) => {
+  const handleGradeChange = (studentId, questionNo, maxScore, value) => {
     if (value === '' || value === null) {
       const newGrades = {
         ...grades,
         [studentId]: {
           ...grades[studentId],
-          [outcomeIndex]: '',
+          [questionNo]: '',
         },
       }
       setGrades(newGrades)
@@ -75,36 +80,34 @@ const GradingTable = ({ config, students, grades: existingGrades, onGradesChange
       })
       
       const newWarnings = { ...warnings }
-      delete newWarnings[`${studentId}-${outcomeIndex}`]
+      delete newWarnings[`${studentId}-${questionNo}`]
       setWarnings(newWarnings)
       return
     }
 
-    let numValue = parseFloat(value) || 0
-    const maxScoreForOutcome = config.outcomeScores[outcomeIndex]
+    let numValue = parseFloat(value)
+    if (Number.isNaN(numValue)) numValue = 0
+    const maxScoreForQuestion = Number(maxScore) || 0
     
     if (numValue < 0) numValue = 0
     
-    if (numValue > maxScoreForOutcome) {
-      numValue = maxScoreForOutcome
+    if (numValue > maxScoreForQuestion) {
+      numValue = maxScoreForQuestion
       setWarnings({
         ...warnings,
-        [`${studentId}-${outcomeIndex}`]: `Max ${maxScoreForOutcome}!`,
+        [`${studentId}-${questionNo}`]: `Max ${maxScoreForQuestion}!`,
       })
     } else {
       const newWarnings = { ...warnings }
-      delete newWarnings[`${studentId}-${outcomeIndex}`]
+      delete newWarnings[`${studentId}-${questionNo}`]
       setWarnings(newWarnings)
     }
-    
-    // TAM SAYIYA YUVARLA
-    numValue = Math.round(numValue)
     
     const newGrades = {
       ...grades,
       [studentId]: {
         ...grades[studentId],
-        [outcomeIndex]: numValue,
+        [questionNo]: numValue,
       },
     }
     setGrades(newGrades)
@@ -143,21 +146,21 @@ const GradingTable = ({ config, students, grades: existingGrades, onGradesChange
       // Toplam boşaltıldığında tüm kazanımları temizle
       const newGrades = { ...grades }
       newGrades[studentId] = {}
-      config.outcomes.forEach((_, index) => {
-        newGrades[studentId][index] = ''
+      questions.forEach((question) => {
+        newGrades[studentId][question.qNo] = ''
       })
       setGrades(newGrades)
       onGradesChange(newGrades)
       return
     }
 
-    let numValue = parseFloat(value) || 0
+    let numValue = parseFloat(value)
+    if (Number.isNaN(numValue)) numValue = 0
     
     // Negatif değer engelle
     if (numValue < 0) numValue = 0
     
     // TAM SAYIYA YUVARLA
-    numValue = Math.round(numValue)
     
     // CONSTRAINT: Max puanı aşarsa uyar ve işlemi yapma
     if (numValue > maxTotalScore) {
@@ -177,33 +180,35 @@ const GradingTable = ({ config, students, grades: existingGrades, onGradesChange
       return
     }
     
-    // TERSTEN HESAPLAMA: Toplamı kazanım sayısına böl ve TAM SAYIYA YUVARLA
-    const outcomeCount = config.outcomes.length
-    const scorePerOutcome = numValue / outcomeCount
+    // Toplamı soru sayısına eşit dağıt
+    const questionCount = questions.length
+    const scorePerQuestion = questionCount > 0 ? (numValue / questionCount) : 0
     
-    // Tüm kazanımlara eşit dağıt (TAM SAYI olarak)
+    // Tüm sorulara eşit dağıt
     const newGrades = { ...grades }
     newGrades[studentId] = {}
     
     let distributedSum = 0
     
-    config.outcomes.forEach((_, index) => {
-      const maxForThisOutcome = config.outcomeScores[index]
-      let scoreForThis = Math.round(scorePerOutcome) // TAM SAYIYA YUVARLA
+    questions.forEach((question) => {
+      const maxForThisOutcome = question.maxScore
+      let scoreForThis = scorePerQuestion
       
       // Eğer kazanımın max'ını aşıyorsa, max'a eşitle
       scoreForThis = Math.min(scoreForThis, maxForThisOutcome)
       scoreForThis = Math.max(0, scoreForThis)
       
-      newGrades[studentId][index] = scoreForThis
+      newGrades[studentId][question.qNo] = scoreForThis
       distributedSum += scoreForThis
     })
     
     // Yuvarlama farkını son kazanıma ekle/çıkar
     const diff = numValue - distributedSum
-    if (diff !== 0 && outcomeCount > 0) {
-      const lastIndex = outcomeCount - 1
-      const lastMax = config.outcomeScores[lastIndex]
+    if (diff !== 0 && questionCount > 0) {
+      const lastQuestion = questions[questions.length - 1]
+      if (!lastQuestion) return
+      const lastIndex = lastQuestion.qNo
+      const lastMax = lastQuestion.maxScore
       const lastValue = newGrades[studentId][lastIndex]
       const adjustedLast = Math.min(Math.max(0, lastValue + diff), lastMax)
       newGrades[studentId][lastIndex] = adjustedLast
@@ -235,9 +240,10 @@ const GradingTable = ({ config, students, grades: existingGrades, onGradesChange
     
     students.forEach((student) => {
       newGrades[student.id] = {}
-      config.outcomes.forEach((_, index) => {
-        // Her kazanıma o kazanımın maksimum puanını ver (TAM SAYI)
-        newGrades[student.id][index] = Math.round(config.outcomeScores[index])
+      questions.forEach((question) => {
+        // Her soruya maksimum puanını ver
+        const maxScore = Number(question.maxScore) || 0
+        newGrades[student.id][question.qNo] = maxScore
       })
     })
     
@@ -265,8 +271,8 @@ const GradingTable = ({ config, students, grades: existingGrades, onGradesChange
 
   const allGradesFilled = () => {
     return students.every((student) => {
-      return config.outcomes.every((_, index) => {
-        const grade = grades[student.id]?.[index]
+      return questions.every((question) => {
+        const grade = grades[student.id]?.[question.qNo]
         return grade !== '' && grade !== undefined
       })
     })
@@ -282,8 +288,8 @@ const GradingTable = ({ config, students, grades: existingGrades, onGradesChange
   const getEmptyInputCount = () => {
     let count = 0
     students.forEach((student) => {
-      config.outcomes.forEach((_, index) => {
-        const grade = grades[student.id]?.[index]
+      questions.forEach((question) => {
+        const grade = grades[student.id]?.[question.qNo]
         if (grade === '' || grade === undefined) {
           count++
         }
@@ -294,8 +300,8 @@ const GradingTable = ({ config, students, grades: existingGrades, onGradesChange
 
   const getFilledStudentCount = () => {
     return students.filter((student) => {
-      return config.outcomes.every((_, index) => {
-        const grade = grades[student.id]?.[index]
+      return questions.every((question) => {
+        const grade = grades[student.id]?.[question.qNo]
         return grade !== '' && grade !== undefined
       })
     }).length
@@ -320,7 +326,7 @@ const GradingTable = ({ config, students, grades: existingGrades, onGradesChange
             <div>
               <CardTitle>Not Girişi</CardTitle>
               <CardDescription>
-                Kazanım puanlarını tek tek girin veya toplam puandan otomatik dağıtın
+                Soru puanlarını tek tek girin veya toplam puandan otomatik dağıtın
               </CardDescription>
             </div>
             
@@ -352,9 +358,73 @@ const GradingTable = ({ config, students, grades: existingGrades, onGradesChange
               <strong>Hibrit Giriş:</strong>
             </div>
             <ul className="list-disc list-inside space-y-1 ml-6">
-              <li>Kazanım kutularına (K1, K2...) tek tek puan girin → Toplam otomatik hesaplanır</li>
+              <li>Soru kutularına (Q1, Q2...) tek tek puan girin → Toplam otomatik hesaplanır</li>
               <li><strong>Toplam</strong> kutusuna değer yazıp <strong>Enter</strong>'a basın veya kutudan çıkın → Puanlar eşit dağıtılır</li>
             </ul>
+          </div>
+
+          {/* Grading Mode Toggle */}
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setGradingMode('fast')}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                gradingMode === 'fast'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-600 border border-gray-200'
+              }`}
+            >
+              H�zl� Mod (Toplam Puan)
+            </button>
+            <button
+              type="button"
+              onClick={() => setGradingMode('detailed')}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                gradingMode === 'detailed'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-600 border border-gray-200'
+              }`}
+            >
+              Detayl� Mod (Soru Bazl�)
+            </button>
+          </div>
+
+          {/* Grading Mode Toggle */}
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setGradingMode('fast')}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                gradingMode === 'fast'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-600 border border-gray-200'
+              }`}
+            >
+              H�zl� Mod (Toplam Puan)
+            </button>
+            <button
+              type="button"
+              onClick={() => setGradingMode('detailed')}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                gradingMode === 'detailed'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-600 border border-gray-200'
+              }`}
+            >
+              Detayl� Mod (Soru Bazl�)
+            </button>
+          </div>
+
+          {/* Class Summary */}
+          <div className="mb-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm text-gray-600">
+                <strong>Sınıf Ortalaması:</strong> {classAverage.toFixed(1)} / {maxTotalScore}
+              </div>
+              <div className="text-xs text-gray-400">
+                Öğrenci sayısı: {students.length}
+              </div>
+            </div>
           </div>
 
           {/* Desktop Table View - Apple Card Style */}
@@ -366,16 +436,21 @@ const GradingTable = ({ config, students, grades: existingGrades, onGradesChange
                     <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-16">Sıra</th>
                     <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">Okul No</th>
                     <th className="px-4 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[150px]">Ad Soyad</th>
-                    {config.outcomes.map((outcome, index) => (
+                    {questions.map((question) => {
+                      const outcomeIndex = question.outcomeId !== '' ? Number(question.outcomeId) : NaN
+                      const outcomeLabel = Number.isFinite(outcomeIndex)
+                        ? config.outcomes?.[outcomeIndex]
+                        : ''
+                      return (
                       <th
-                        key={index}
+                        key={question.qNo}
                         className="px-4 py-4 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[80px]"
-                        title={outcome}
+                        title={outcomeLabel || ''}
                       >
-                        <div>K{index + 1}</div>
-                        <div className="text-[10px] font-normal text-gray-400 normal-case mt-0.5">({config.outcomeScores[index]})</div>
+                        <div>Q{question.qNo}</div>
+                        <div className="text-[10px] font-normal text-gray-400 normal-case mt-0.5">({question.maxScore})</div>
                       </th>
-                    ))}
+                    )})}
                     <th className="px-4 py-4 text-center text-xs font-semibold text-amber-700 uppercase tracking-wider min-w-[120px] bg-amber-50">
                       <div>Toplam</div>
                       <div className="text-[10px] font-normal text-amber-600 normal-case mt-0.5">(max: {maxTotalScore})</div>
@@ -396,20 +471,20 @@ const GradingTable = ({ config, students, grades: existingGrades, onGradesChange
                       <td className="px-6 py-4 text-sm text-gray-500">{student.siraNo}</td>
                       <td className="px-6 py-4 text-sm font-medium text-blue-600">{student.studentNumber || student.no || '-'}</td>
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">{student.name}</td>
-                      {config.outcomes.map((_, outcomeIndex) => {
-                        const hasWarning = warnings[`${student.id}-${outcomeIndex}`]
-                        const maxScoreForOutcome = config.outcomeScores[outcomeIndex]
+                      {questions.map((question) => {
+                        const hasWarning = warnings[`${student.id}-${question.qNo}`]
+                        const maxScoreForOutcome = question.maxScore
                         
                         return (
-                          <td key={outcomeIndex} className="px-2 py-3 relative">
+                          <td key={question.qNo} className="px-2 py-3 relative">
                             <Input
                               type="number"
                               min="0"
                               max={maxScoreForOutcome}
                               step="1"
-                              value={grades[student.id]?.[outcomeIndex] ?? ''}
+                              value={grades[student.id]?.[question.qNo] ?? ''}
                               onChange={(e) =>
-                                handleGradeChange(student.id, outcomeIndex, e.target.value)
+                                handleGradeChange(student.id, question.qNo, maxScoreForOutcome, e.target.value)
                               }
                               className={`text-center text-sm py-2 ${
                                 hasWarning ? 'border-red-500 bg-red-50' : 'border-gray-200'
@@ -419,27 +494,34 @@ const GradingTable = ({ config, students, grades: existingGrades, onGradesChange
                           </td>
                         )
                       })}
-                      {/* TOPLAM INPUT - Editable with onBlur */}
                       <td className="px-2 py-3 relative bg-amber-50/50">
-                        <Input
-                          type="number"
-                          min="0"
-                          max={maxTotalScore}
-                          step="1"
-                          value={displayTotal}
-                          onChange={(e) => handleTotalInputChange(student.id, e.target.value)}
-                          onBlur={() => handleTotalDistribute(student.id)}
-                          onKeyDown={(e) => handleTotalKeyDown(student.id, e)}
-                          className={`text-center h-8 font-bold ${
-                            hasTotalWarning 
-                              ? 'border-red-500 bg-red-100 animate-pulse' 
-                              : getTotalColorClass(total)
-                          }`}
-                          title="Değer yazıp Enter'a basın veya kutudan çıkın"
-                        />
-                        {hasTotalWarning && (
-                          <div className="absolute -top-8 left-0 right-0 bg-red-600 text-white text-xs px-2 py-1 rounded z-10 whitespace-nowrap text-center">
-                            {hasTotalWarning}
+                        {gradingMode === 'fast' ? (
+                          <>
+                            <Input
+                              type="number"
+                              min="0"
+                              max={maxTotalScore}
+                              step="1"
+                              value={displayTotal}
+                              onChange={(e) => handleTotalInputChange(student.id, e.target.value)}
+                              onBlur={() => handleTotalDistribute(student.id)}
+                              onKeyDown={(e) => handleTotalKeyDown(student.id, e)}
+                              className={`text-center h-8 font-bold ${
+                                hasTotalWarning 
+                                  ? 'border-red-500 bg-red-100 animate-pulse' 
+                                  : getTotalColorClass(total)
+                              }`}
+                              title="Değer yazıp Enter'a basın veya kutudan çıkın"
+                            />
+                            {hasTotalWarning && (
+                              <div className="absolute -top-8 left-0 right-0 bg-red-600 text-white text-xs px-2 py-1 rounded z-10 whitespace-nowrap text-center">
+                                {hasTotalWarning}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className={`text-center h-8 flex items-center justify-center font-bold ${getTotalColorClass(total)}`}>
+                            {total.toFixed(1)}
                           </div>
                         )}
                       </td>
@@ -500,47 +582,54 @@ const GradingTable = ({ config, students, grades: existingGrades, onGradesChange
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {/* Toplam Puan Input - Mobil */}
                     <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
                       <div className="flex justify-between items-center mb-2">
                         <span className="font-semibold text-amber-800">Toplam Puan</span>
                         <span className="text-sm text-amber-600">max: {maxTotalScore}</span>
                       </div>
-                      <Input
-                        type="number"
-                        min="0"
-                        max={maxTotalScore}
-                        step="1"
-                        value={displayTotal}
-                        onChange={(e) => handleTotalInputChange(student.id, e.target.value)}
-                        onBlur={() => handleTotalDistribute(student.id)}
-                        onKeyDown={(e) => handleTotalKeyDown(student.id, e)}
-                        className={`text-center text-xl font-bold ${
-                          hasTotalWarning ? 'border-red-500 bg-red-100' : ''
-                        }`}
-                        placeholder="Toplam girin"
-                      />
-                      {hasTotalWarning && (
-                        <p className="text-xs text-red-600 mt-1 flex items-center">
-                          <AlertTriangle className="w-3 h-3 mr-1" />
-                          {hasTotalWarning}
-                        </p>
+                      {gradingMode === 'fast' ? (
+                        <>
+                          <Input
+                            type="number"
+                            min="0"
+                            max={maxTotalScore}
+                            step="1"
+                            value={displayTotal}
+                            onChange={(e) => handleTotalInputChange(student.id, e.target.value)}
+                            onBlur={() => handleTotalDistribute(student.id)}
+                            onKeyDown={(e) => handleTotalKeyDown(student.id, e)}
+                            className={`text-center text-xl font-bold ${
+                              hasTotalWarning ? 'border-red-500 bg-red-100' : ''
+                            }`}
+                            placeholder="Toplam girin"
+                          />
+                          {hasTotalWarning && (
+                            <p className="text-xs text-red-600 mt-1 flex items-center">
+                              <AlertTriangle className="w-3 h-3 mr-1" />
+                              {hasTotalWarning}
+                            </p>
+                          )}
+                          <p className="text-xs text-amber-600 mt-1">
+                            💡 Değer yazıp Enter'a basın veya kutudan çıkın
+                          </p>
+                        </>
+                      ) : (
+                        <div className={`text-center text-xl font-bold ${getTotalColorClass(total)}`}>
+                          {total.toFixed(1)}
+                        </div>
                       )}
-                      <p className="text-xs text-amber-600 mt-1">
-                        💡 Değer yazıp Enter'a basın veya kutudan çıkın
-                      </p>
                     </div>
 
-                    {/* Kazanım Puanları */}
+                    {/* Soru Puanları */}
                     <div className="grid grid-cols-2 gap-2">
-                      {config.outcomes.map((outcome, outcomeIndex) => {
-                        const hasWarning = warnings[`${student.id}-${outcomeIndex}`]
-                        const maxScoreForOutcome = config.outcomeScores[outcomeIndex]
+                      {questions.map((question) => {
+                        const hasWarning = warnings[`${student.id}-${question.qNo}`]
+                        const maxScoreForOutcome = question.maxScore
                         
                         return (
-                          <div key={outcomeIndex} className="space-y-1">
+                          <div key={question.qNo} className="space-y-1">
                             <div className="flex justify-between text-xs">
-                              <span className="font-medium">K{outcomeIndex + 1}</span>
+                              <span className="font-medium">Q{question.qNo}</span>
                               <span className="text-gray-400">({maxScoreForOutcome})</span>
                             </div>
                             <Input
@@ -548,9 +637,9 @@ const GradingTable = ({ config, students, grades: existingGrades, onGradesChange
                               min="0"
                               max={maxScoreForOutcome}
                               step="1"
-                              value={grades[student.id]?.[outcomeIndex] ?? ''}
+                              value={grades[student.id]?.[question.qNo] ?? ''}
                               onChange={(e) =>
-                                handleGradeChange(student.id, outcomeIndex, e.target.value)
+                                handleGradeChange(student.id, question.qNo, maxScoreForOutcome, e.target.value)
                               }
                               className={`text-center h-9 ${
                                 hasWarning ? 'border-red-500 bg-red-50' : ''
@@ -598,28 +687,55 @@ const GradingTable = ({ config, students, grades: existingGrades, onGradesChange
         </CardContent>
       </Card>
 
-      {/* Navigation Buttons */}
-      <div className="flex justify-between">
-        <Button onClick={onBack} variant="outline" size="lg">
-          Geri
-        </Button>
-        <Button
-          onClick={onNext}
-          size="lg"
-          disabled={!allGradesFilled() || hasOverflow()}
-          className={`min-w-[200px] ${(!allGradesFilled() || hasOverflow()) ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          {hasOverflow() ? (
-            'Puan Hatası Var'
-          ) : !allGradesFilled() ? (
-            'Tüm Puanları Girin'
-          ) : (
-            'Analiz Sonuçlarını Gör'
-          )}
-        </Button>
-      </div>
+      {showNavigation && (
+        <div className="flex justify-between">
+          <Button onClick={onBack} variant="outline" size="lg">
+            Geri
+          </Button>
+          <Button
+            onClick={onNext}
+            size="lg"
+            disabled={!allGradesFilled() || hasOverflow()}
+            className={`min-w-[200px] ${(!allGradesFilled() || hasOverflow()) ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            {hasOverflow() ? (
+              'Puan Hatası Var'
+            ) : !allGradesFilled() ? (
+              'Tüm Puanları Girin'
+            ) : (
+              'Analiz Sonuçlarını Gör'
+            )}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
 
 export default GradingTable
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,3 +1,5 @@
+import { calculateOutcomeStats as calculateOutcomeStatsForQuestions, buildFailureMatrix } from './outcomeStats'
+
 const toNumber = (value) => {
   if (typeof value === 'number' && Number.isFinite(value)) return value
   if (typeof value === 'string' && value.trim() !== '') {
@@ -19,6 +21,11 @@ export const getMaxTotalScore = (outcomeScores = []) => {
   return total > 0 ? total : 0
 }
 
+const getMaxTotalFromQuestions = (questions = []) => {
+  const total = questions.reduce((sum, question) => sum + toNumber(question.maxScore), 0)
+  return total > 0 ? total : 0
+}
+
 export const getPerformanceLabel = (percentage) => {
   const pct = clampPercent(percentage)
   if (pct <= 20) return 'Çok Düşük'
@@ -28,17 +35,23 @@ export const getPerformanceLabel = (percentage) => {
   return 'Çok İyi'
 }
 
-export const buildStudentResults = ({ config, students, grades, maxTotalScore, generalPassingScore }) => {
+export const buildStudentResults = ({ config, students, grades, questions = [], maxTotalScore, generalPassingScore }) => {
   const safeMaxTotalScore = maxTotalScore > 0 ? maxTotalScore : 100
   const passingScore = Number.isFinite(generalPassingScore) ? generalPassingScore : 50
   const outcomes = Array.isArray(config.outcomes) ? config.outcomes : []
+  const outcomeIds = outcomes.map((_, index) => String(index))
 
   return students.map((student) => {
     let total = 0
-    const outcomeScores = outcomes.map((_, outcomeIndex) => {
-      const score = toNumber(grades?.[student.id]?.[outcomeIndex])
-      total += score
-      return score
+    const outcomeScores = outcomeIds.map((outcomeId) => {
+      const outcomeQuestions = questions.filter((q) => String(q.outcomeId) === outcomeId)
+      let outcomeTotal = 0
+      outcomeQuestions.forEach((question) => {
+        const score = toNumber(grades?.[student.id]?.[question.qNo])
+        outcomeTotal += score
+      })
+      total += outcomeTotal
+      return outcomeTotal
     })
 
     const percentage = safeMaxTotalScore > 0 ? (total / safeMaxTotalScore) * 100 : 0
@@ -74,81 +87,6 @@ export const calculateClassStats = ({ studentResults, maxTotalScore }) => {
     classAverage,
     classAveragePercentage,
   }
-}
-
-export const calculateOutcomeStats = ({ config, studentResults, outcomeMasteryThreshold }) => {
-  const outcomes = Array.isArray(config.outcomes) ? config.outcomes : []
-  const outcomeScores = Array.isArray(config.outcomeScores) ? config.outcomeScores : []
-  const masteryThreshold = Number.isFinite(outcomeMasteryThreshold) ? outcomeMasteryThreshold : 50
-  const totalStudents = studentResults.length
-
-  return outcomes.map((outcome, index) => {
-    const maxScore = toNumber(outcomeScores[index])
-    const outcomeThreshold = maxScore * (masteryThreshold / 100)
-
-    let successCount = 0
-    let totalScore = 0
-
-    studentResults.forEach((student) => {
-      const score = toNumber(student.outcomeScores?.[index])
-      totalScore += score
-      if (score >= outcomeThreshold) {
-        successCount += 1
-      }
-    })
-
-    const successRate = totalStudents > 0 ? (successCount / totalStudents) * 100 : 0
-    const avgScore = totalStudents > 0 ? totalScore / totalStudents : 0
-    const avgPercentage = maxScore > 0 ? (avgScore / maxScore) * 100 : 0
-
-    return {
-      outcome,
-      index,
-      maxScore,
-      successRate,
-      avgScore,
-      avgPercentage,
-      successCount,
-      failCount: totalStudents - successCount,
-      failRate: 100 - successRate,
-    }
-  })
-}
-
-export const calculateFailureMatrix = ({ config, studentResults, outcomeMasteryThreshold }) => {
-  const outcomes = Array.isArray(config.outcomes) ? config.outcomes : []
-  const outcomeScores = Array.isArray(config.outcomeScores) ? config.outcomeScores : []
-  const masteryThreshold = Number.isFinite(outcomeMasteryThreshold) ? outcomeMasteryThreshold : 50
-  const totalStudents = studentResults.length
-
-  return outcomes.map((outcome, index) => {
-    const maxScore = toNumber(outcomeScores[index])
-    const failThreshold = maxScore * (masteryThreshold / 100)
-
-    const failedStudents = studentResults
-      .filter((student) => toNumber(student.outcomeScores?.[index]) < failThreshold)
-      .map((student) => ({
-        id: student.id,
-        name: student.name,
-        score: toNumber(student.outcomeScores?.[index]),
-        maxScore,
-        percentage: maxScore > 0 ? (toNumber(student.outcomeScores?.[index]) / maxScore) * 100 : 0,
-        isPassingOverall: student.isPassing,
-      }))
-
-    const failRate = totalStudents > 0 ? (failedStudents.length / totalStudents) * 100 : 0
-
-    return {
-      outcome,
-      index,
-      maxScore,
-      failedStudents,
-      failedCount: failedStudents.length,
-      totalStudents,
-      failRate,
-      isAllSuccess: failedStudents.length === 0,
-    }
-  })
 }
 
 export const calculateScoreDistribution = (studentResults) => {
@@ -212,8 +150,10 @@ export const buildStudentComment = ({ student, classAverage, outcomes, outcomeSc
   return comment
 }
 
-export const buildAnalysis = ({ config, students, grades }) => {
-  const rawMaxTotalScore = getMaxTotalScore(config.outcomeScores || [])
+export const buildAnalysis = ({ config, students, grades, questions = [] }) => {
+  const rawMaxTotalScore = questions.length > 0
+    ? getMaxTotalFromQuestions(questions)
+    : getMaxTotalScore(config.outcomeScores || [])
   const maxTotalScore = rawMaxTotalScore > 0 ? rawMaxTotalScore : 100
   const generalPassingScore = Number.isFinite(config.generalPassingScore) ? config.generalPassingScore : 50
   const outcomeMasteryThreshold = Number.isFinite(config.outcomeMasteryThreshold)
@@ -224,14 +164,17 @@ export const buildAnalysis = ({ config, students, grades }) => {
     config,
     students,
     grades,
+    questions,
     maxTotalScore,
     generalPassingScore,
   })
 
   const classStats = calculateClassStats({ studentResults, maxTotalScore })
-  const outcomeAnalysis = calculateOutcomeStats({
-    config,
-    studentResults,
+  const outcomeAnalysis = calculateOutcomeStatsForQuestions({
+    outcomes: config.outcomes || [],
+    questions,
+    students,
+    grades,
     outcomeMasteryThreshold,
   })
 
@@ -241,9 +184,11 @@ export const buildAnalysis = ({ config, students, grades }) => {
     outcomeAnalysis,
     troubledOutcomes: getTroubledOutcomes(outcomeAnalysis),
     scoreDistribution: calculateScoreDistribution(studentResults),
-    failureMatrix: calculateFailureMatrix({
-      config,
-      studentResults,
+    failureMatrix: buildFailureMatrix({
+      outcomes: config.outcomes || [],
+      questions,
+      students,
+      grades,
       outcomeMasteryThreshold,
     }),
     maxTotalScore,

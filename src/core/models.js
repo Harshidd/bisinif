@@ -28,7 +28,14 @@
  */
 
 /**
- * @typedef {Object.<string, Object.<string, number|string>>} Grades
+ * @typedef {Object} Question
+ * @property {number} qNo
+ * @property {number} maxScore
+ * @property {string} outcomeId
+ */
+
+/**
+ * @typedef {Object.<string, Object.<number|string, number|string>>} Grades
  */
 
 /**

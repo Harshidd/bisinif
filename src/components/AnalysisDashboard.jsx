@@ -46,6 +46,8 @@ import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import * as XLSX from 'xlsx'
 import { buildAnalysis, buildStudentComment } from '../core/scoring'
+import { calculateItemDifficulty } from '../core/itemStats'
+import { calculateOutcomeStats, buildFailureMatrix } from '../core/outcomeStats'
 
 // Pastel renk paleti
 const COLORS = {
@@ -79,7 +81,7 @@ const toAscii = (str) => {
     .replace(/Ç/g, 'C')
 }
 
-const AnalysisDashboard = ({ config, students, grades, onBack, onEditGrades, onNewAnalysis }) => {
+const AnalysisDashboard = ({ config, questions = [], students, grades, onBack, onEditGrades, onNewAnalysis }) => {
   const [activeTab, setActiveTab] = useState('class') // 'class' | 'student'
   const [selectedStudentId, setSelectedStudentId] = useState('')
   const [isExporting, setIsExporting] = useState(false)
@@ -91,8 +93,36 @@ const AnalysisDashboard = ({ config, students, grades, onBack, onEditGrades, onN
   const remedialCardsRef = useRef(null)
 
   const analysis = useMemo(() => {
-    return buildAnalysis({ config, students, grades })
-  }, [config, students, grades])
+    return buildAnalysis({ config, students, grades, questions })
+  }, [config, students, grades, questions])
+
+  const outcomeStats = useMemo(() => {
+    return calculateOutcomeStats({
+      outcomes: config.outcomes || [],
+      questions,
+      students,
+      grades,
+      outcomeMasteryThreshold: config.outcomeMasteryThreshold ?? 50,
+    })
+  }, [config.outcomes, config.outcomeMasteryThreshold, questions, students, grades])
+
+  const failureMatrix = useMemo(() => {
+    return buildFailureMatrix({
+      outcomes: config.outcomes || [],
+      questions,
+      students,
+      grades,
+      outcomeMasteryThreshold: config.outcomeMasteryThreshold ?? 50,
+    })
+  }, [config.outcomes, config.outcomeMasteryThreshold, questions, students, grades])
+
+  const itemStats = useMemo(() => {
+    return calculateItemDifficulty({ questions, students, grades })
+  }, [questions, students, grades])
+
+  const outcomeMaxScores = useMemo(() => {
+    return outcomeStats.map((item) => item.maxScore)
+  }, [outcomeStats])
 
   const selectedStudent = useMemo(() => {
     if (!selectedStudentId) return null
@@ -104,9 +134,9 @@ const AnalysisDashboard = ({ config, students, grades, onBack, onEditGrades, onN
       student: selectedStudent,
       classAverage: analysis.classAverage,
       outcomes: config.outcomes || [],
-      outcomeScores: config.outcomeScores || [],
+      outcomeScores: outcomeMaxScores,
     })
-  }, [selectedStudent, analysis.classAverage, config.outcomes, config.outcomeScores])
+  }, [selectedStudent, analysis.classAverage, config.outcomes, outcomeMaxScores])
 
   const scoreDistribution = useMemo(() => {
     return analysis.scoreDistribution.map((entry, index) => ({
@@ -384,7 +414,7 @@ const AnalysisDashboard = ({ config, students, grades, onBack, onEditGrades, onN
                         title={config.outcomes[index]}
                       >
                         <div>S{index + 1}</div>
-                        <div className="text-[10px] font-normal text-gray-400 normal-case">({config.outcomeScores[index]})</div>
+                        <div className="text-[10px] font-normal text-gray-400 normal-case">({outcomeStats[index]?.maxScore ?? 0})</div>
                       </th>
                     ))}
                     <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-16 bg-gray-50">
@@ -411,7 +441,7 @@ const AnalysisDashboard = ({ config, students, grades, onBack, onEditGrades, onN
                       </td>
                       {config.outcomes.map((_, outcomeIndex) => {
                         const score = student.outcomeScores[outcomeIndex]
-                        const maxScore = config.outcomeScores[outcomeIndex]
+                        const maxScore = outcomeStats[outcomeIndex]?.maxScore ?? 0
                         const pct = (score / maxScore) * 100
                         return (
                           <td 
@@ -443,7 +473,7 @@ const AnalysisDashboard = ({ config, students, grades, onBack, onEditGrades, onN
                       Sınıf Ortalaması
                     </td>
                     {config.outcomes.map((_, outcomeIndex) => {
-                      const avgScore = analysis.outcomeAnalysis[outcomeIndex].avgScore
+                      const avgScore = outcomeStats[outcomeIndex]?.avgScore ?? 0
                       return (
                         <td key={outcomeIndex} className="px-2 py-3 text-center text-gray-600 font-medium">
                           {avgScore.toFixed(1)}
@@ -642,12 +672,12 @@ const AnalysisDashboard = ({ config, students, grades, onBack, onEditGrades, onN
                   <Target className="w-5 h-5 mr-2 text-emerald-500" />
                   Kazanım Başarı Oranları
                 </CardTitle>
-                <CardDescription>Her soru için sınıf başarı yüzdesi</CardDescription>
+                <CardDescription>Her kazanım için sınıf başarı yüzdesi</CardDescription>
           </CardHeader>
               <CardContent className="pt-6">
-                <ResponsiveContainer width="100%" height={Math.max(280, analysis.outcomeAnalysis.length * 35)}>
+                <ResponsiveContainer width="100%" height={Math.max(280, outcomeStats.length * 35)}>
                   <BarChart 
-                    data={analysis.outcomeAnalysis.map((o, i) => ({
+                    data={outcomeStats.map((o, i) => ({
                       name: `S${i + 1}`,
                       başarı: o.successRate,
                     }))}
@@ -681,7 +711,7 @@ const AnalysisDashboard = ({ config, students, grades, onBack, onEditGrades, onN
                       name="Başarı %" 
                       radius={[0, 6, 6, 0]}
                     >
-                      {analysis.outcomeAnalysis.map((o, index) => (
+                      {outcomeStats.map((o, index) => (
                         <Cell 
                           key={index} 
                           fill={o.successRate >= (config.outcomeMasteryThreshold || 50) ? '#10b981' : '#ef4444'} 
@@ -693,6 +723,82 @@ const AnalysisDashboard = ({ config, students, grades, onBack, onEditGrades, onN
           </CardContent>
         </Card>
       </div>
+
+          {/* Soru Zorluk Oranları */}
+          <Card className="overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-slate-50 to-gray-50 border-b border-slate-100">
+              <CardTitle className="flex items-center text-slate-800">
+                <BarChart3 className="w-5 h-5 mr-2 text-slate-500" />
+                {"Soru Zorluk Oranlar\u0131"}
+              </CardTitle>
+              <CardDescription>{"Her soru i\u00e7in zorluk y\u00fczdesi ve ortalama puan"}</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              {itemStats.length === 0 ? (
+                <div className="text-sm text-slate-500">{"Soru blueprint bulunamad\u0131."}</div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-200 text-xs text-gray-500 uppercase tracking-wider">
+                          <th className="px-3 py-2 text-left">Soru</th>
+                          <th className="px-3 py-2 text-left">Kazanım</th>
+                          <th className="px-3 py-2 text-center">Max</th>
+                          <th className="px-3 py-2 text-center">Zorluk %</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {itemStats.map((item) => {
+                          const outcomeIndex = item.outcomeId !== '' ? Number(item.outcomeId) : NaN
+                          const outcomeLabel = Number.isFinite(outcomeIndex)
+                            ? config.outcomes?.[outcomeIndex]
+                            : ''
+                          return (
+                            <tr key={item.qNo}>
+                              <td className="px-3 py-2 font-medium text-gray-900">Q{item.qNo}</td>
+                              <td className="px-3 py-2 text-gray-600 truncate max-w-[220px]" title={outcomeLabel || ''}>
+                                {outcomeLabel || '-'}
+                              </td>
+                              <td className="px-3 py-2 text-center text-gray-700">{item.maxScore}</td>
+                              <td className="px-3 py-2 text-center font-semibold text-slate-700">
+                                {item.difficulty.toFixed(1)}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="bg-slate-50 rounded-xl p-4">
+                    <ResponsiveContainer width="100%" height={320}>
+                      <BarChart
+                        data={itemStats.map((item) => ({
+                          name: `Q${item.qNo}`,
+                          zorluk: item.difficulty,
+                        }))}
+                        margin={{ left: 10, right: 20, bottom: 10 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis
+                          dataKey="name"
+                          tick={{ fill: '#64748b', fontSize: 12 }}
+                          axisLine={{ stroke: '#cbd5e1' }}
+                        />
+                        <YAxis
+                          domain={[0, 100]}
+                          tick={{ fill: '#64748b', fontSize: 12 }}
+                          axisLine={{ stroke: '#cbd5e1' }}
+                        />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Bar dataKey="zorluk" name="Zorluk %" fill="#8b5cf6" radius={[6, 6, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
             {/* ===== KAZANIM BAZLI TELAFİ LİSTESİ (Failure Matrix) ===== */}
             <div ref={remedialCardsRef} className="p-6 bg-white border-t border-gray-100">
@@ -707,7 +813,7 @@ const AnalysisDashboard = ({ config, students, grades, onBack, onEditGrades, onN
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {analysis.failureMatrix.map((item) => (
+              {failureMatrix.map((item) => (
                 <div 
                   key={item.index}
                   className={`bg-white rounded-xl border shadow-sm transition-all duration-200 hover:shadow-md ${
@@ -959,7 +1065,7 @@ const AnalysisDashboard = ({ config, students, grades, onBack, onEditGrades, onN
                   <div className="space-y-2 max-h-[400px] overflow-y-auto scrollbar-thin pr-2">
                     {config.outcomes.map((outcome, idx) => {
                       const score = selectedStudent.outcomeScores[idx]
-                      const maxScore = config.outcomeScores[idx]
+                      const maxScore = outcomeStats[idx]?.maxScore ?? 0
                       const pct = (score / maxScore) * 100
                       const isSuccess = pct >= (config.outcomeMasteryThreshold || 50)
                       
@@ -1003,7 +1109,7 @@ const AnalysisDashboard = ({ config, students, grades, onBack, onEditGrades, onN
                         data={config.outcomes.map((_, idx) => ({
                           name: `S${idx + 1}`,
                           'Öğrenci': selectedStudent.outcomeScores[idx],
-                          'Sınıf': analysis.outcomeAnalysis[idx].avgScore,
+                          'Sınıf': outcomeStats[idx]?.avgScore ?? 0,
                         }))}
                         barGap={4}
                       >
@@ -1146,6 +1252,12 @@ const AnalysisDashboard = ({ config, students, grades, onBack, onEditGrades, onN
 }
 
 export default AnalysisDashboard
+
+
+
+
+
+
 
 
 

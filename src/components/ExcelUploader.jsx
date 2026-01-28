@@ -12,7 +12,7 @@ import * as XLSX from 'xlsx'
  * - name: Öğrenci adı soyadı - Excel'den ADI SOYADI sütunu
  */
 
-const ExcelUploader = ({ onStudentsImported, onNext, onBack, existingStudents }) => {
+const ExcelUploader = ({ onStudentsImported, onNext, onBack, existingStudents, showNavigation = true }) => {
   const [isDragging, setIsDragging] = useState(false)
   const [students, setStudents] = useState(existingStudents || [])
   const [error, setError] = useState(null)
@@ -455,20 +455,21 @@ const ExcelUploader = ({ onStudentsImported, onNext, onBack, existingStudents })
         </CardContent>
       </Card>
 
-      {/* Navigation */}
-      <div className="flex justify-between">
-        <Button onClick={onBack} variant="outline" size="lg">
-          Geri
-        </Button>
-        <Button
-          onClick={onNext}
-          size="lg"
-          disabled={students.length === 0}
-          className="min-w-[200px]"
-        >
-          Sonraki Adım
-        </Button>
-      </div>
+      {showNavigation && (
+        <div className="flex justify-between">
+          <Button onClick={onBack} variant="outline" size="lg">
+            Geri
+          </Button>
+          <Button
+            onClick={onNext}
+            size="lg"
+            disabled={students.length === 0}
+            className="min-w-[200px]"
+          >
+            Sonraki Adım
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

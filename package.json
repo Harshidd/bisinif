@@ -23,14 +23,14 @@
     "@capacitor/android": "^8.0.0",
     "@capacitor/core": "^8.0.0",
     "@capacitor/ios": "^8.0.0",
-    "clsx": "^2.0.0",
+    "clsx": "^2.1.1",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.0.0",
     "lucide-react": "^0.294.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "recharts": "^2.10.3",
-    "tailwind-merge": "^2.1.0",
+    "tailwind-merge": "^2.6.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-latest/xlsx-latest.tgz"
   },
   "devDependencies": {
