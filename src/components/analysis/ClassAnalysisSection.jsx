@@ -1,13 +1,30 @@
 import React from 'react'
 
-export const ClassAnalysisSection = ({ analysis }) => {
+export const ClassAnalysisSection = ({ analysis, config }) => {
     const students = analysis?.studentResults ?? []
+    const questions = analysis?.questions ?? []
+
+    // Sıralama: En düşük puandan en yüksek puana, eşitse numaraya göre
+    const sortedStudents = [...students].sort((a, b) => {
+        const totalA = a.total ?? 0
+        const totalB = b.total ?? 0
+
+        // Önce puana göre (düşükten yükseğe)
+        if (totalA !== totalB) {
+            return totalA - totalB
+        }
+
+        // Puanlar eşitse numaraya göre
+        const noA = parseInt(a.no || a.studentNumber || '9999')
+        const noB = parseInt(b.no || b.studentNumber || '9999')
+        return noA - noB
+    })
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             <div>
                 <h2 className="text-2xl font-bold text-slate-900">Sınıf Listesi</h2>
-                <p className="text-slate-500">Tüm öğrencilerin başarı sıralaması</p>
+                <p className="text-slate-500">Tüm öğrencilerin başarı sıralaması (düşükten yükseğe)</p>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -18,13 +35,18 @@ export const ClassAnalysisSection = ({ analysis }) => {
                                 <th className="px-4 py-3 w-16">Sıra</th>
                                 <th className="px-4 py-3 w-20">No</th>
                                 <th className="px-4 py-3">Adı Soyadı</th>
-                                <th className="px-4 py-3 text-center">Puan</th>
-                                <th className="px-4 py-3 text-center">Başarı %</th>
+                                {/* Soru Sütunları */}
+                                {questions.map((q, i) => (
+                                    <th key={`q-${i}`} className="px-2 py-3 text-center text-xs">
+                                        S{i + 1}
+                                    </th>
+                                ))}
+                                <th className="px-4 py-3 text-center font-bold">Toplam</th>
                                 <th className="px-4 py-3 text-center">Durum</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {students.map((student, idx) => (
+                            {sortedStudents.map((student, idx) => (
                                 <tr key={student.id} className="hover:bg-slate-50 transition-colors">
                                     <td className="px-4 py-3 font-medium text-slate-400">
                                         {idx + 1}
@@ -35,11 +57,17 @@ export const ClassAnalysisSection = ({ analysis }) => {
                                     <td className="px-4 py-3 font-medium text-slate-900">
                                         {student.name}
                                     </td>
+                                    {/* Soru Puanları */}
+                                    {questions.map((q, i) => {
+                                        const score = student.questionScores?.[i] ?? 0
+                                        return (
+                                            <td key={`s-${student.id}-q-${i}`} className="px-2 py-3 text-center text-xs text-slate-600">
+                                                {Math.round(score)}
+                                            </td>
+                                        )
+                                    })}
                                     <td className="px-4 py-3 text-center font-bold text-slate-800">
-                                        {student.total.toFixed(0)}
-                                    </td>
-                                    <td className="px-4 py-3 text-center text-slate-600">
-                                        {student.maxTotalScore > 0 ? `%${(student.total / student.maxTotalScore * 100).toFixed(0)}` : '-'}
+                                        {Math.round(student.total)}
                                     </td>
                                     <td className="px-4 py-3 text-center">
                                         {student.isPassing ? (

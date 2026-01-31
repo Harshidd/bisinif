@@ -2,7 +2,7 @@
 // TAM ANALİZ RAPORU: Özet + Liste + Telafi + Karneler (2/sayfa)
 
 import React from "react";
-import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import { Document, Page, Text, View, StyleSheet, Svg, Rect, Line, G } from "@react-pdf/renderer";
 import './fonts'; // Font kaydı
 import {
     chunk,
@@ -17,6 +17,8 @@ import {
     formatDate,
     getDistributionBuckets,
     calculateStats,
+    calculateOutcomeSuccess,
+    calculateOutcomeSuccessWithFailures,
     shortName
 } from "./pdfUtils";
 
@@ -253,6 +255,219 @@ const MiniBar = ({ value, color = colors.success }) => {
 };
 
 // ============================================
+// SÜTUN GRAFİĞİ (SVG - Profesyonel)
+// ============================================
+
+const ColumnChart = ({ data = [], width = 240, height = 120 }) => {
+    if (!Array.isArray(data) || data.length === 0) {
+        return (
+            <View style={{ width, height, justifyContent: "center", alignItems: "center" }}>
+                <Text style={{ fontSize: 8, color: colors.muted }}>Veri yok</Text>
+            </View>
+        );
+    }
+
+    const maxCount = Math.max(...data.map(d => d.count || 0), 1);
+    const padding = { top: 15, right: 10, bottom: 25, left: 35 };
+    const chartWidth = width - padding.left - padding.right;
+    const chartHeight = height - padding.top - padding.bottom;
+    const barWidth = chartWidth / (data.length * 1.5);
+    const barSpacing = barWidth * 0.5;
+
+    return (
+        <View style={{ width, height }}>
+            <Svg width={width} height={height}>
+                {/* Y Ekseni */}
+                <Line
+                    x1={padding.left}
+                    y1={padding.top}
+                    x2={padding.left}
+                    y2={height - padding.bottom}
+                    stroke={colors.border}
+                    strokeWidth={1}
+                />
+
+                {/* X Ekseni */}
+                <Line
+                    x1={padding.left}
+                    y1={height - padding.bottom}
+                    x2={width - padding.right}
+                    y2={height - padding.bottom}
+                    stroke={colors.border}
+                    strokeWidth={1}
+                />
+
+                {/* Y Ekseni Etiketleri */}
+                <Text
+                    x={padding.left - 5}
+                    y={height - padding.bottom + 3}
+                    fontSize={7}
+                    fill={colors.muted}
+                    textAnchor="end"
+                >
+                    0
+                </Text>
+                <Text
+                    x={padding.left - 5}
+                    y={padding.top + chartHeight / 2 + 3}
+                    fontSize={7}
+                    fill={colors.muted}
+                    textAnchor="end"
+                >
+                    {Math.round(maxCount / 2)}
+                </Text>
+                <Text
+                    x={padding.left - 5}
+                    y={padding.top + 3}
+                    fontSize={7}
+                    fill={colors.muted}
+                    textAnchor="end"
+                >
+                    {maxCount}
+                </Text>
+
+                {/* Sütunlar ve Etiketler */}
+                {data.map((item, index) => {
+                    const barHeight = (item.count / maxCount) * chartHeight;
+                    const x = padding.left + index * (barWidth + barSpacing) + barSpacing;
+                    const y = height - padding.bottom - barHeight;
+
+                    return (
+                        <G key={`col-${index}`}>
+                            <Rect
+                                x={x}
+                                y={y}
+                                width={barWidth}
+                                height={barHeight}
+                                fill={item.color || colors.primary}
+                                rx={2}
+                            />
+                            <Text
+                                x={x + barWidth / 2}
+                                y={y - 4}
+                                fontSize={8}
+                                fontWeight="bold"
+                                fill={colors.text}
+                                textAnchor="middle"
+                            >
+                                {item.count}
+                            </Text>
+                            <Text
+                                x={x + barWidth / 2}
+                                y={height - padding.bottom + 12}
+                                fontSize={7}
+                                fill={colors.muted}
+                                textAnchor="middle"
+                            >
+                                {item.label}
+                            </Text>
+                        </G>
+                    );
+                })}
+            </Svg>
+        </View>
+    );
+};
+
+// ============================================
+// YATAY BAR GRAFİĞİ (Kazanımlar için)
+// ============================================
+
+/**
+ * Profesyonel Yatay Bar Grafiği
+ * @param {Array} data - [{label, title, passedCount, totalCount, successRate, color}]
+ * @param {Number} maxBars - Maksimum gösterilecek bar sayısı
+ */
+const HorizontalBarChart = ({ data = [], maxBars = 10 }) => {
+    if (!Array.isArray(data) || data.length === 0) {
+        return (
+            <View style={{ padding: 10, alignItems: "center" }}>
+                <Text style={{ fontSize: 8, color: colors.muted }}>Kazanım verisi yok</Text>
+            </View>
+        );
+    }
+
+    const displayData = data.slice(0, maxBars);
+    const barHeight = 20;
+    const barSpacing = 8;
+    const labelWidth = 30;
+    const statsWidth = 80;
+    const chartWidth = 300;
+
+    return (
+        <View>
+            {displayData.map((item, index) => {
+                const percentage = Math.min(100, Math.max(0, item.successRate || 0));
+                const barWidth = (percentage / 100) * (chartWidth - labelWidth - statsWidth - 20);
+
+                return (
+                    <View key={`hbar-${index}`} style={{ marginBottom: barSpacing }}>
+                        {/* Başlık Satırı */}
+                        <View style={{ flexDirection: "row", marginBottom: 2, alignItems: "center" }}>
+                            <Text style={{ fontSize: 7, fontWeight: "bold", width: labelWidth, color: colors.muted }}>
+                                {item.label}
+                            </Text>
+                            <Text style={{ fontSize: 7, flex: 1, color: colors.text }}>
+                                {item.title.length > 45 ? item.title.slice(0, 45) + "..." : item.title}
+                            </Text>
+                        </View>
+
+                        {/* Bar ve İstatistikler */}
+                        <View style={{ flexDirection: "row", alignItems: "center" }}>
+                            <View style={{ width: labelWidth }} />
+
+                            {/* Bar Container */}
+                            <View style={{
+                                flex: 1,
+                                height: barHeight,
+                                backgroundColor: colors.bg,
+                                borderRadius: 4,
+                                overflow: "hidden",
+                                marginRight: 8
+                            }}>
+                                {/* Bar Fill */}
+                                <View style={{
+                                    height: barHeight,
+                                    width: `${percentage}%`,
+                                    backgroundColor: item.color || colors.primary,
+                                    borderRadius: 4,
+                                    justifyContent: "center",
+                                    paddingLeft: 6
+                                }}>
+                                    {percentage > 15 && (
+                                        <Text style={{ fontSize: 7, color: "#FFFFFF", fontWeight: "bold" }}>
+                                            {percentage.toFixed(0)}%
+                                        </Text>
+                                    )}
+                                </View>
+                            </View>
+
+                            {/* İstatistikler */}
+                            <View style={{ width: statsWidth, alignItems: "flex-end" }}>
+                                <Text style={{ fontSize: 8, fontWeight: "bold", color: colors.text }}>
+                                    {item.passedCount}/{item.totalCount}
+                                </Text>
+                                {percentage <= 15 && (
+                                    <Text style={{ fontSize: 7, color: colors.muted }}>
+                                        %{percentage.toFixed(0)}
+                                    </Text>
+                                )}
+                            </View>
+                        </View>
+                    </View>
+                );
+            })}
+
+            {data.length > maxBars && (
+                <Text style={{ fontSize: 7, color: colors.muted, marginTop: 4, textAlign: "center" }}>
+                    Not: İlk {maxBars} kazanım gösterildi. Toplam: {data.length}
+                </Text>
+            )}
+        </View>
+    );
+};
+
+// ============================================
 // SAYFA 1: ÖZET + ANALİZ (Öğrenci Listesi YOK)
 // ============================================
 
@@ -315,13 +530,7 @@ const SummaryAndAnalysisPage = ({ analysis, config }) => {
                 {/* Sol: Başarı Dağılımı */}
                 <View style={[styles.card, styles.col2]}>
                     <Text style={styles.cardTitle}>Başarı Dağılımı</Text>
-                    {distribution.map((bucket) => (
-                        <View key={bucket.label} style={styles.barRow}>
-                            <Text style={styles.barLabel}>{bucket.label}</Text>
-                            <Bar value={bucket.count} max={maxCount} color={bucket.color} />
-                            <Text style={styles.barValue}>{bucket.count}</Text>
-                        </View>
-                    ))}
+                    <ColumnChart data={distribution} width={240} height={120} />
                 </View>
 
                 {/* Sağ: Temel İstatistikler */}
@@ -390,35 +599,39 @@ const SummaryAndAnalysisPage = ({ analysis, config }) => {
             {/* Soru Analizi (Kompakt Tablo) */}
             <View style={styles.card}>
                 <Text style={styles.cardTitle}>Soru Analizi</Text>
+                <Text style={{ fontSize: 7, color: colors.muted, marginBottom: 6 }}>
+                    Zorluk: Yüksek % = Kolay (çok öğrenci yaptı), Düşük % = Zor (az öğrenci yaptı)
+                </Text>
                 {questions.length === 0 ? (
                     <Text style={{ color: colors.muted, fontStyle: "italic" }}>Soru verisi yok</Text>
                 ) : (
                     <View style={styles.table}>
                         <View style={styles.trHead}>
-                            <Text style={[styles.th, { width: "10%" }]}>Soru</Text>
-                            <Text style={[styles.th, { width: "10%" }]}>Kaz.</Text>
-                            <Text style={[styles.th, { width: "10%" }]}>Max</Text>
-                            <Text style={[styles.th, { width: "50%" }]}>Zorluk</Text>
-                            <Text style={[styles.th, { width: "20%", textAlign: "right" }]}>Başarı</Text>
+                            <Text style={[styles.th, { width: "15%" }]}>Soru</Text>
+                            <Text style={[styles.th, { width: "15%" }]}>Max</Text>
+                            <Text style={[styles.th, { width: "15%" }]}>Ort.</Text>
+                            <Text style={[styles.th, { width: "35%" }]}>Zorluk</Text>
+                            <Text style={[styles.th, { width: "20%", textAlign: "right" }]}>%</Text>
                         </View>
                         {questions.slice(0, 10).map((q, i) => {
-                            const difficulty = toNum(q?.difficulty ?? q?.avgScore ?? q?.correctRate, 0);
-                            const diffPct = difficulty > 1 ? difficulty : difficulty * 100;
-                            const barColor = diffPct > 70 ? colors.success : diffPct < 40 ? colors.danger : colors.primary;
+                            const maxScore = toNum(q?.maxScore, 10);
+                            const avgScore = toNum(q?.avgScore, 0);
+                            const difficulty = maxScore > 0 ? (avgScore / maxScore) * 100 : 0;
+                            const barColor = difficulty > 70 ? colors.success : difficulty < 40 ? colors.danger : colors.warning;
                             const rowStyle = i % 2 === 0 ? styles.tr : styles.trAlt;
 
                             return (
                                 <View key={`q-${i}`} style={rowStyle}>
-                                    <Text style={[styles.td, { width: "10%" }]}>S{q?.qNo ?? i + 1}</Text>
-                                    <Text style={[styles.td, { width: "10%" }]}>K{toNum(q?.outcomeId, 0) + 1}</Text>
-                                    <Text style={[styles.td, { width: "10%" }]}>{q?.maxScore ?? "-"}</Text>
-                                    <View style={[styles.td, { width: "50%", flexDirection: "row", alignItems: "center" }]}>
+                                    <Text style={[styles.td, { width: "15%" }]}>S{q?.qNo ?? i + 1}</Text>
+                                    <Text style={[styles.td, { width: "15%" }]}>{maxScore}</Text>
+                                    <Text style={[styles.td, { width: "15%" }]}>{avgScore.toFixed(1)}</Text>
+                                    <View style={[styles.td, { width: "35%", flexDirection: "row", alignItems: "center" }]}>
                                         <View style={{ flex: 1 }}>
-                                            <MiniBar value={diffPct} color={barColor} />
+                                            <MiniBar value={difficulty} color={barColor} />
                                         </View>
                                     </View>
                                     <Text style={[styles.td, { width: "20%", textAlign: "right", fontWeight: "bold", color: barColor }]}>
-                                        %{diffPct.toFixed(0)}
+                                        %{difficulty.toFixed(0)}
                                     </Text>
                                 </View>
                             );
@@ -444,37 +657,114 @@ const SummaryAndAnalysisPage = ({ analysis, config }) => {
 const ClassListPages = ({ analysis, config }) => {
     const threshold = toNum(config?.generalPassingScore ?? config?.passScore ?? 50);
     const students = sortStudentsByNo(analysis?.studentResults ?? []);
+    // Maksimum 20 soru gösterelim, taşma olmasın
+    const questions = (analysis?.questions ?? []).slice(0, 20);
 
     if (students.length === 0) return null;
 
-    const ROWS_PER_PAGE = 42; // Kompakt, boşluk minimize
+    // A4 Landscape: ~550pt yükseklik (kullanılabilir). 40 satır için ~13pt/satır
+    const ROWS_PER_PAGE = 40;
     const pages = chunk(students, ROWS_PER_PAGE);
 
+    // Daha okunaklı ve "oturaklı" stiller
+    const rowStyles = {
+        th: {
+            fontSize: 9,
+            paddingVertical: 4,
+            paddingHorizontal: 2,
+            fontWeight: "bold",
+            backgroundColor: colors.bg,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.primary,
+            color: colors.primary,
+            textAlign: "center"
+        },
+        td: {
+            fontSize: 9,
+            paddingVertical: 3,
+            paddingHorizontal: 2,
+            borderBottomWidth: 0.5,
+            borderBottomColor: colors.border,
+            textAlign: "center"
+        },
+        tdLeft: {
+            fontSize: 9,
+            paddingVertical: 3,
+            paddingHorizontal: 4,
+            borderBottomWidth: 0.5,
+            borderBottomColor: colors.border,
+            textAlign: "left"
+        },
+        tdBold: {
+            fontSize: 9,
+            fontWeight: "bold",
+            paddingVertical: 3,
+            paddingHorizontal: 2,
+            borderBottomWidth: 0.5,
+            borderBottomColor: colors.border,
+            textAlign: "center"
+        }
+    };
+
+    // Sütun genişlikleri (Landscape ~800pt kullanılabilir)
+    const colWidths = {
+        sira: 30,
+        no: 50,
+        ad: 160,
+        soru: questions.length > 0 ? (450 / questions.length) : 0, // Kalan alanı bölüştür
+        toplam: 50,
+        durum: 60
+    };
+
     return pages.map((rows, pageIdx) => (
-        <Page key={`class-${pageIdx}`} size="A4" style={styles.page}>
+        <Page key={`class-${pageIdx}`} size="A4" style={styles.page} orientation="landscape">
             <Header title={`Sınıf Listesi (${pageIdx + 1}/${pages.length})`} config={config} />
 
-            <View style={styles.table}>
-                <View style={styles.trHead}>
-                    <Text style={[styles.th, styles.colSira]}>Sıra</Text>
-                    <Text style={[styles.th, styles.colNo]}>No</Text>
-                    <Text style={[styles.th, styles.colAd]}>Ad Soyad</Text>
-                    <Text style={[styles.th, styles.colPuan]}>Puan</Text>
-                    <Text style={[styles.th, styles.colDurum]}>Durum</Text>
+            <View style={[styles.table, { marginTop: 10 }]}>
+                {/* Header Row */}
+                <View style={{ flexDirection: "row", backgroundColor: colors.bg, alignItems: "center" }}>
+                    <Text style={[rowStyles.th, { width: colWidths.sira }]}>#</Text>
+                    <Text style={[rowStyles.th, { width: colWidths.no }]}>No</Text>
+                    <Text style={[rowStyles.th, { width: colWidths.ad, textAlign: "left", paddingLeft: 4 }]}>Ad Soyad</Text>
+                    {/* Soru Sütunları */}
+                    {questions.map((q, i) => (
+                        <Text key={`qh-${i}`} style={[rowStyles.th, { width: colWidths.soru }]}>
+                            S{i + 1}
+                        </Text>
+                    ))}
+                    <Text style={[rowStyles.th, { width: colWidths.toplam }]}>Puan</Text>
+                    <Text style={[rowStyles.th, { width: colWidths.durum }]}>Durum</Text>
                 </View>
 
+                {/* Data Rows */}
                 {rows.map((s, i) => {
                     const globalIndex = pageIdx * ROWS_PER_PAGE + i + 1;
                     const total = toNum(s?.total, 0);
                     const durum = statusText(total, threshold);
-                    const rowStyle = i % 2 === 0 ? styles.tr : styles.trAlt;
+                    const bgColor = i % 2 === 0 ? '#fff' : colors.bgAlt;
+
                     return (
-                        <View key={`cl-${globalIndex}`} style={rowStyle}>
-                            <Text style={[styles.td, styles.colSira]}>{globalIndex}</Text>
-                            <Text style={[styles.td, styles.colNo]}>{getStudentNo(s)}</Text>
-                            <Text style={[styles.td, styles.colAd]}>{getStudentName(s)}</Text>
-                            <Text style={[styles.tdBold, styles.colPuan]}>{total.toFixed(0)}</Text>
-                            <Text style={[styles.td, styles.colDurum, { color: statusColor(total, threshold) }]}>{durum}</Text>
+                        <View key={`cl-${globalIndex}`} style={{ flexDirection: "row", backgroundColor: bgColor, alignItems: "center" }}>
+                            <Text style={[rowStyles.td, { width: colWidths.sira }]}>{globalIndex}</Text>
+                            <Text style={[rowStyles.td, { width: colWidths.no }]}>{getStudentNo(s)}</Text>
+                            <Text style={[rowStyles.tdLeft, { width: colWidths.ad }]}>
+                                {getStudentName(s).length > 25 ? getStudentName(s).slice(0, 25) + "..." : getStudentName(s)}
+                            </Text>
+                            {/* Soru Puanları */}
+                            {questions.map((q, qi) => {
+                                const score = s.questionScores?.[qi] ?? 0;
+                                // Tam sayı ise ondalık gösterme
+                                const displayScore = Number.isInteger(score) ? score : score.toFixed(1);
+                                return (
+                                    <Text key={`sq-${qi}`} style={[rowStyles.td, { width: colWidths.soru }]}>
+                                        {displayScore}
+                                    </Text>
+                                );
+                            })}
+                            <Text style={[rowStyles.tdBold, { width: colWidths.toplam }]}>{Math.round(total)}</Text>
+                            <Text style={[rowStyles.td, { width: colWidths.durum, color: statusColor(total, threshold), fontSize: 8 }]}>
+                                {durum}
+                            </Text>
                         </View>
                     );
                 })}
@@ -504,118 +794,191 @@ const RemedialPage = ({ analysis, config }) => {
 
     return (
         <Page size="A4" style={styles.page}>
-            <Header title="Telafi Listesi" config={config} />
+            <Header title="Telafi Programı Önerisi" config={config} />
 
-            {outcomesWithRemedial.map((outcome, idx) => {
-                const outcomeIndex = outcomes.indexOf(outcome);
-                const title = configOutcomes[outcomeIndex] || outcome?.title || outcome?.name || `Kazanım ${outcomeIndex + 1}`;
-                const failedStudents = sortStudentsByNo(outcome?.failedStudents ?? []);
+            <View style={{ marginBottom: 15, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                <Text style={{ fontSize: 11, color: colors.muted }}>
+                    Aşağıdaki kazanımlarda başarı oranı %{threshold} altında kalan veya eksik öğrenmesi bulunan öğrenciler listelenmiştir.
+                </Text>
+            </View>
 
-                return (
-                    <View key={`remedial-${idx}`} style={styles.remedialSection}>
-                        <Text style={styles.outcomeTitle}>
-                            K{outcomeIndex + 1}: {title}
-                        </Text>
-                        <Text style={styles.remedialCount}>
-                            Telafi Gereken: {failedStudents.length} öğrenci
-                        </Text>
+            <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 6, overflow: "hidden" }}>
+                {/* Header */}
+                <View style={{ flexDirection: "row", backgroundColor: colors.bg, paddingVertical: 8, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: colors.primary }}>
+                    <Text style={{ fontSize: 10, fontWeight: "bold", width: "40%", color: colors.primary }}>Kazanım</Text>
+                    <Text style={{ fontSize: 10, fontWeight: "bold", width: "10%", textAlign: "center", color: colors.primary }}>Sayı</Text>
+                    <Text style={{ fontSize: 10, fontWeight: "bold", width: "50%", color: colors.primary }}>Öğrenci Listesi</Text>
+                </View>
 
-                        <View style={styles.table}>
-                            <View style={styles.trHead}>
-                                <Text style={[styles.th, { width: "15%" }]}>No</Text>
-                                <Text style={[styles.th, { width: "60%" }]}>Ad Soyad</Text>
-                                <Text style={[styles.th, { width: "25%", textAlign: "right" }]}>Puan</Text>
+                {outcomesWithRemedial.map((o, i) => {
+                    const title = configOutcomes[i] || o?.title || `Kazanım ${i + 1}`;
+                    const failedStudents = o.failedStudents || [];
+                    const bgColor = i % 2 === 0 ? "#fff" : colors.bgAlt;
+
+                    return (
+                        <View key={`rem-${i}`} style={{ flexDirection: "row", backgroundColor: bgColor, paddingVertical: 8, paddingHorizontal: 4, borderBottomWidth: 0.5, borderBottomColor: colors.border }}>
+                            <View style={{ width: "40%", paddingRight: 8 }}>
+                                <Text style={{ fontSize: 9, color: colors.muted, marginBottom: 2 }}>K{i + 1}</Text>
+                                <Text style={{ fontSize: 10, color: colors.text }}>{title}</Text>
                             </View>
-                            {failedStudents.map((student, i) => {
-                                const rowStyle = i % 2 === 0 ? styles.tr : styles.trAlt;
-                                return (
-                                    <View key={`rem-${idx}-${i}`} style={rowStyle}>
-                                        <Text style={[styles.td, { width: "15%" }]}>{getStudentNo(student)}</Text>
-                                        <Text style={[styles.td, { width: "60%" }]}>{getStudentName(student)}</Text>
-                                        <Text style={[styles.td, { width: "25%", textAlign: "right" }]}>{toNum(student?.total, 0)}</Text>
-                                    </View>
-                                );
-                            })}
+                            <View style={{ width: "10%", justifyContent: "center", alignItems: "center" }}>
+                                <View style={{ backgroundColor: "#FCA5A5", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 }}>
+                                    <Text style={{ fontSize: 10, fontWeight: "bold", color: "#991B1B" }}>{failedStudents.length}</Text>
+                                </View>
+                            </View>
+                            <View style={{ width: "50%", justifyContent: "center" }}>
+                                <Text style={{ fontSize: 9, color: colors.text, lineHeight: 1.4 }}>
+                                    {failedStudents.map(s => getStudentName(s)).join(", ")}
+                                </Text>
+                            </View>
                         </View>
-                    </View>
-                );
-            })}
+                    );
+                })}
+            </View>
 
             <Footer schoolName={config?.schoolName} />
         </Page>
     );
 };
 
+
+
 // ============================================
-// SAYFA 5+: ÖĞRENCİ KARNELERİ (2 öğrenci / 1 sayfa)
+// KAZANIM BAŞARI GRAFİĞİ SAYFASI
 // ============================================
 
-const CompactStudentCardsPages = ({ analysis, config }) => {
-    const threshold = toNum(config?.generalPassingScore ?? config?.passScore ?? 50);
-    const students = sortStudentsByNo(analysis?.studentResults ?? []);
+const OutcomeSuccessPage = ({ analysis, config }) => {
+    const outcomes = Array.isArray(analysis?.outcomes) ? analysis.outcomes : [];
+    const students = Array.isArray(analysis?.studentResults) ? analysis.studentResults : [];
     const configOutcomes = Array.isArray(config?.outcomes) ? config.outcomes : [];
-    const pairs = chunk(students, 2);
+    const threshold = toNum(config?.generalPassingScore ?? config?.passScore ?? 50);
 
-    if (students.length === 0) return null;
+    if (outcomes.length === 0) return null;
 
-    const StudentCard = ({ student }) => {
-        const total = toNum(student?.total, 0);
-        const durum = statusText(total, threshold);
-        const durumColor = statusColor(total, threshold);
-        const outcomeScores = Array.isArray(student?.outcomeScores) ? student.outcomeScores : [];
+    // Kazanım başarı verilerini hesapla
+    const outcomeData = calculateOutcomeSuccessWithFailures(outcomes, students, threshold).map((item, idx) => ({
+        ...item,
+        title: configOutcomes[idx] || item.title,
+        originalIndex: idx
+    }));
 
-        return (
-            <View style={styles.studentCard}>
-                <View style={styles.studentBanner}>
-                    <View>
-                        <Text style={styles.studentName}>{getStudentName(student)}</Text>
-                        <Text style={{ fontSize: 8, color: colors.muted }}>No: {getStudentNo(student)}</Text>
-                    </View>
-                    <View style={[styles.badge, { backgroundColor: durumColor + "20" }]}>
-                        <Text style={{ color: durumColor }}>{durum} • {total.toFixed(0)}</Text>
+    // Tek sayfa - tüm kazanımlar
+    const totalStudents = students.length;
+
+    // Telafi listesi için
+    const failureData = outcomeData.filter(o => o.failingStudents && o.failingStudents.length > 0);
+
+    return (
+        <Page size="A4" style={styles.page}>
+            <Header title="Kazanım Başarı Analizi" config={config} />
+
+            <View style={{ marginBottom: 15 }}>
+                {/* İstatistik Header */}
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 10, borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 4 }}>
+                    <Text style={{ fontSize: 13, fontWeight: "bold", color: colors.primary }}>Kazanım Başarı Oranları</Text>
+                    <View style={{ flexDirection: "row", gap: 10 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                            <View style={{ width: 10, height: 10, backgroundColor: colors.success, borderRadius: 3 }} />
+                            <Text style={{ fontSize: 9, color: colors.muted }}>Başarılı</Text>
+                        </View>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                            <View style={{ width: 10, height: 10, backgroundColor: colors.danger, borderRadius: 3 }} />
+                            <Text style={{ fontSize: 9, color: colors.muted }}>Telafi</Text>
+                        </View>
                     </View>
                 </View>
 
-                <Text style={styles.h3}>Kazanım Performansı</Text>
-                {outcomeScores.length > 0 ? (
-                    outcomeScores.slice(0, 5).map((o, i) => {
-                        const title = configOutcomes[i] || o?.title || o?.name || `Kazanım ${i + 1}`;
-                        const score = toNum(o?.score ?? o?.rate, 0);
-                        const barColor = score >= threshold ? colors.success : colors.warning;
-                        return (
-                            <View key={`os-${i}`} style={{ marginBottom: 5 }}>
-                                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                                    <Text style={{ fontSize: 7 }}>
-                                        <Text style={{ color: colors.muted }}>K{i + 1} </Text>
-                                        {title.length > 20 ? title.slice(0, 20) + "..." : title}
-                                    </Text>
-                                    <Text style={{ fontSize: 7, fontWeight: "bold", color: barColor }}>%{score.toFixed(0)}</Text>
+                {/* Kazanım Kartları - Kompakt */}
+                {outcomeData.map((outcome, i) => {
+                    const failedCount = outcome.failingStudents?.length ?? 0;
+                    const passedCount = totalStudents - failedCount;
+                    const successRate = totalStudents > 0 ? (passedCount / totalStudents) * 100 : 0;
+
+                    return (
+                        <View key={`outcome-${i}`} style={{ marginBottom: 8, padding: 8, backgroundColor: colors.bgAlt, borderRadius: 6, borderLeftWidth: 4, borderLeftColor: successRate >= threshold ? colors.success : colors.danger }}>
+                            {/* Başlık */}
+                            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
+                                <View style={{ flex: 1, paddingRight: 8 }}>
+                                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                                        <Text style={{ fontSize: 8, fontWeight: "bold", color: colors.muted, marginRight: 4 }}>K{i + 1}</Text>
+                                        <Text style={{ fontSize: 9, fontWeight: "bold", color: colors.text }} numberOfLines={1}>
+                                            {outcome.title}
+                                        </Text>
+                                    </View>
                                 </View>
-                                <MiniBar value={score} color={barColor} />
+                                <View style={{ alignItems: "flex-end" }}>
+                                    <Text style={{ fontSize: 11, fontWeight: "bold", color: successRate >= threshold ? colors.success : colors.danger }}>
+                                        %{successRate.toFixed(0)}
+                                    </Text>
+                                    <Text style={{ fontSize: 7, color: colors.muted }}>
+                                        {failedCount} Telafi
+                                    </Text>
+                                </View>
+                            </View>
+
+                            {/* Progress Bar */}
+                            <View style={{ flexDirection: "row", height: 10, borderRadius: 3, overflow: "hidden", backgroundColor: "#E5E7EB" }}>
+                                {passedCount > 0 && (
+                                    <View style={{ width: `${successRate}%`, backgroundColor: colors.success }} />
+                                )}
+                                {failedCount > 0 && (
+                                    <View style={{ width: `${100 - successRate}%`, backgroundColor: colors.danger }} />
+                                )}
+                            </View>
+                        </View>
+                    );
+                })}
+            </View>
+
+            {/* TELAFİ LİSTESİ TABLOSU */}
+            {failureData.length > 0 ? (
+                <View style={{ marginTop: 5, padding: 8, backgroundColor: "#FEF2F2", borderRadius: 6, borderWidth: 1, borderColor: colors.danger + "30" }}>
+                    <Text style={{ fontSize: 11, fontWeight: "bold", color: colors.danger, marginBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.danger + "30", paddingBottom: 4 }}>
+                        Telafi Gereken Öğrenciler
+                    </Text>
+
+                    <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: colors.danger + "30", paddingBottom: 2, marginBottom: 4 }}>
+                        <Text style={{ fontSize: 8, fontWeight: "bold", width: "40%", color: colors.danger }}>Kazanım</Text>
+                        <Text style={{ fontSize: 8, fontWeight: "bold", width: "10%", textAlign: "center", color: colors.danger }}>Sayı</Text>
+                        <Text style={{ fontSize: 8, fontWeight: "bold", width: "50%", color: colors.danger }}>Öğrenci Listesi</Text>
+                    </View>
+
+                    {failureData.map((outcome, idx) => {
+                        const studentNames = outcome.failingStudents.map(s => getStudentName(s)).join(", ");
+                        return (
+                            <View key={`telafi-${idx}`} style={{ flexDirection: "row", marginBottom: 4, paddingBottom: 4, borderBottomWidth: 0.5, borderBottomColor: colors.danger + "20" }}>
+                                <View style={{ width: "40%", paddingRight: 4 }}>
+                                    <Text style={{ fontSize: 8, color: colors.text }}>
+                                        <Text style={{ fontWeight: "bold" }}>K{outcome.originalIndex + 1}</Text>: {outcome.title.slice(0, 30)}
+                                        {outcome.title.length > 30 ? "..." : ""}
+                                    </Text>
+                                </View>
+                                <View style={{ width: "10%", alignItems: "center" }}>
+                                    <Text style={{ fontSize: 9, fontWeight: "bold", color: colors.danger }}>{outcome.failedCount}</Text>
+                                </View>
+                                <View style={{ width: "50%" }}>
+                                    <Text style={{ fontSize: 8, color: colors.text, lineHeight: 1.2 }}>
+                                        {studentNames}
+                                    </Text>
+                                </View>
                             </View>
                         );
-                    })
-                ) : (
-                    <Text style={{ fontSize: 7, color: colors.muted, fontStyle: "italic" }}>Kazanım verisi yok</Text>
-                )}
-            </View>
-        );
-    };
-
-    return pairs.map((pair, idx) => (
-        <Page key={`cards-${idx}`} size="A4" style={styles.page}>
-            <Header title={`Öğrenci Karneleri (${idx + 1}/${pairs.length})`} config={config} />
-
-            <View style={styles.twoCardWrap}>
-                {pair.map((student, i) => (
-                    <StudentCard key={`sc-${idx}-${i}`} student={student} />
-                ))}
-                {pair.length === 1 && <View style={{ flex: 1 }} />}
-            </View>
+                    })}
+                </View>
+            ) : (
+                <View style={{ marginTop: 10, padding: 10, backgroundColor: "#F0FDF4", borderRadius: 6, borderWidth: 1, borderColor: colors.success + "30", alignItems: "center" }}>
+                    <Text style={{ fontSize: 10, color: colors.success, fontWeight: "bold" }}>
+                        🎉 Tebrikler! Tüm kazanımlarda tam başarı sağlandı.
+                    </Text>
+                    <Text style={{ fontSize: 8, color: colors.muted, marginTop: 2 }}>
+                        Telafi gerektiren öğrenci bulunmamaktadır.
+                    </Text>
+                </View>
+            )}
 
             <Footer schoolName={config?.schoolName} />
         </Page>
-    ));
+    );
 };
 
 // ============================================
@@ -632,8 +995,8 @@ export default function FullReportDocument({ analysis, config, questions }) {
         <Document>
             <SummaryAndAnalysisPage analysis={enrichedAnalysis} config={config} />
             <ClassListPages analysis={enrichedAnalysis} config={config} />
-            <RemedialPage analysis={enrichedAnalysis} config={config} />
-            <CompactStudentCardsPages analysis={enrichedAnalysis} config={config} />
+            <OutcomeSuccessPage analysis={enrichedAnalysis} config={config} />
+            {/* Öğrenci karneleri ayrı sekmeden indirilecek */}
         </Document>
     );
 }

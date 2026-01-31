@@ -133,6 +133,21 @@ function App() {
     return undefined
   }, [])
 
+  // Sayfa kapatıldığında tüm verileri temizle
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      clearProjectState()
+      // Profile bilgilerini de temizlemek isterseniz:
+      // localStorage.clear()
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [])
+
   const profileData = useMemo(() => ({
     il: toSafeString(config.city),
     ilce: toSafeString(config.district),
@@ -276,10 +291,10 @@ function App() {
                   onClick={() => step.number <= currentStep && setCurrentStep(step.number)}
                   disabled={step.number > currentStep}
                   className={`px-4 py-1.5 text-sm rounded-full transition-all ${currentStep === step.number
-                      ? 'bg-white text-gray-900 font-medium shadow-sm'
-                      : step.number < currentStep
-                        ? 'text-gray-600 hover:text-gray-900'
-                        : 'text-gray-400 cursor-not-allowed'
+                    ? 'bg-white text-gray-900 font-medium shadow-sm'
+                    : step.number < currentStep
+                      ? 'text-gray-600 hover:text-gray-900'
+                      : 'text-gray-400 cursor-not-allowed'
                     }`}
                 >
                   {step.title}

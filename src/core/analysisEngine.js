@@ -175,10 +175,16 @@ export const buildAnalysis = ({
         // Weak < threshold
         const weakOutcomes = sortedByPct.filter(o => o.pct < outcomeMasteryThreshold).reverse().slice(0, 5)
 
+        // ✅ Soru bazlı puanlar (questionScores)
+        const questionScores = questions.map(q => {
+            return safeNum(sGrades[q.qNo])
+        })
+
         return {
             ...s,
             outcomeData: myOutcomeData,
             outcomeScores, // [score1, score2, ...] for quick table mapping
+            questionScores, // ✅ YENİ: [q1Score, q2Score, ...] for question-based display
             weakOutcomes,
             strongOutcomes
         }
@@ -195,6 +201,25 @@ export const buildAnalysis = ({
         const globalPossible = oStat.outcomeMax * studentCount
         oStat.avgScore = studentCount > 0 ? earnedTotal / studentCount : 0
         oStat.successRate = (globalPossible > 0) ? (earnedTotal / globalPossible) * 100 : 0
+
+        // ⭐ YENİ: Başarısız öğrenci listesi ekle
+        oStat.failingStudents = studentResults
+            .filter(s => {
+                const myO = s.outcomeData.find(od => od.outcomeId === oStat.outcomeId)
+                return myO && myO.pct < outcomeMasteryThreshold
+            })
+            .map(s => {
+                const myO = s.outcomeData.find(od => od.outcomeId === oStat.outcomeId)
+                return {
+                    id: s.id,
+                    name: s.name,
+                    no: s.studentNumber || s.no,
+                    total: s.total,
+                    pct: myO ? myO.pct : 0,
+                    score: myO ? myO.myScore : 0,
+                    maxScore: oStat.outcomeMax
+                }
+            })
     })
 
     // 7. Failure Matrix

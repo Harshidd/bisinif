@@ -18,6 +18,15 @@ Font.register({
         {
             src: 'https://fonts.gstatic.com/s/roboto/v30/KFOkCnqEu92Fr1Mu52xPKTM1K9nz.ttf',
             fontWeight: 'medium'
+        },
+        {
+            src: 'https://fonts.gstatic.com/s/roboto/v30/KFOkCnqEu92Fr1Mu51xIIzc.ttf',
+            fontStyle: 'italic'
+        },
+        {
+            src: 'https://fonts.gstatic.com/s/roboto/v30/KFOjCnqEu92Fr1Mu51TzBhc9AMX6lJBP.ttf',
+            fontWeight: 'bold',
+            fontStyle: 'italic'
         }
     ]
 });

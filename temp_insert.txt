@@ -1,6 +1,0 @@
-﻿  const [totalInputValues, setTotalInputValues] = useState({})
-
-  // Grading mode: 'fast' (toplam puan) or 'detailed' (soru bazlı)
-  const [gradingMode, setGradingMode] = useState('fast')
-
-  // Dinamik maksimum toplam puan (kazanımların toplamı)

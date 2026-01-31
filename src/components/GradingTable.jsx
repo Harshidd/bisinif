@@ -363,13 +363,17 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
 
           {/* Desktop Table View - Comapct & Sticky */}
           <div className="hidden lg:block w-full">
-            <div className="w-full overflow-x-auto rounded-xl border border-gray-100 bg-white shadow-sm">
-              <table className="w-full table-fixed min-w-[max-content] border-collapse">
-                <thead className="bg-gray-50 sticky top-0 z-30 shadow-sm">
+            {/* 
+                Yatay ve Dikey Scroll konteyneri.
+                max-h-[75vh] ile ekranın taşmasını engeller, scrollbar her zaman görünür olur.
+            */}
+            <div className="w-full overflow-auto rounded-xl border border-gray-100 bg-white shadow-sm max-h-[75vh] relative">
+              <table className="table-fixed min-w-max border-collapse">
+                <thead className="bg-gray-50 sticky top-0 z-40 shadow-sm">
                   <tr>
-                    <th className="sticky left-0 z-30 bg-white px-2 py-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wide w-12 min-w-[3rem] max-w-[3rem]">#</th>
-                    <th className="sticky z-30 bg-white px-2 py-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wide w-[5rem] min-w-[5rem] max-w-[5rem]" style={{ left: '3rem' }}>No</th>
-                    <th className="sticky z-30 bg-white px-2 py-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wide w-44 min-w-[11rem] max-w-[11rem] border-r border-gray-100" style={{ left: '8rem' }}>Ad Soyad</th>
+                    <th className="sticky left-0 z-50 bg-white px-2 py-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wide w-12 min-w-[3rem] max-w-[3rem] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">#</th>
+                    <th className="sticky z-50 bg-white px-2 py-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wide w-[5rem] min-w-[5rem] max-w-[5rem] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" style={{ left: '3rem' }}>No</th>
+                    <th className="sticky z-50 bg-white px-2 py-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wide w-44 min-w-[11rem] max-w-[11rem] border-r border-gray-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" style={{ left: '8rem' }}>Ad Soyad</th>
 
                     {questions.map((question) => {
                       const outcomeIndex = question.outcomeId !== '' ? Number(question.outcomeId) : NaN
@@ -404,8 +408,8 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
 
                     return (
                       <tr key={student.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="sticky left-0 z-20 bg-white px-2 py-2 text-xs text-gray-600 text-center w-12 min-w-[3rem] max-w-[3rem]">{student.siraNo}</td>
-                        <td className="sticky z-20 bg-white px-1 py-1 w-[5rem] min-w-[5rem] max-w-[5rem]" style={{ left: '3rem' }}>
+                        <td className="sticky left-0 z-20 bg-white px-2 py-2 text-xs text-gray-600 text-center w-12 min-w-[3rem] max-w-[3rem] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">{student.siraNo}</td>
+                        <td className="sticky z-20 bg-white px-1 py-1 w-[5rem] min-w-[5rem] max-w-[5rem] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" style={{ left: '3rem' }}>
                           <Input
                             type="text"
                             value={student.studentNumber || student.no || ''}
@@ -414,7 +418,7 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
                             placeholder="No"
                           />
                         </td>
-                        <td className="sticky z-20 bg-white px-1 py-1 w-44 min-w-[11rem] max-w-[11rem] border-r border-gray-100" style={{ left: '8rem' }}>
+                        <td className="sticky z-20 bg-white px-1 py-1 w-44 min-w-[11rem] max-w-[11rem] border-r border-gray-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" style={{ left: '8rem' }}>
                           <Input
                             type="text"
                             value={student.name || ''}

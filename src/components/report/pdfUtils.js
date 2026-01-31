@@ -127,3 +127,60 @@ export const calculateStats = (students) => {
 
     return { avg, min, max, median, std, count };
 };
+
+// Kazanım başarı istatistikleri hesapla
+export const calculateOutcomeSuccess = (outcomes, students, threshold = 50) => {
+    const arr = Array.isArray(outcomes) ? outcomes : [];
+    const studentCount = Array.isArray(students) ? students.length : 0;
+
+    return arr.map((outcome, index) => {
+        const successRate = toNum(outcome?.successRate ?? outcome?.rate, 0);
+
+        // Başaran öğrenci sayısını hesapla
+        // successRate zaten % cinsinden, öğrenci sayısını bul
+        const passedCount = Math.round((successRate / 100) * studentCount);
+        const failedCount = studentCount - passedCount;
+
+        return {
+            index,
+            label: `K${index + 1}`,
+            title: outcome?.title || outcome?.name || `Kazanım ${index + 1}`,
+            passedCount,
+            failedCount,
+            totalCount: studentCount,
+            successRate,
+            color: successRate >= threshold ? "#22C55E" : successRate >= 40 ? "#F59E0B" : "#EF4444"
+        };
+    });
+};
+
+// Kazanım başarı istatistikleri + başarısız öğrenci listesi
+export const calculateOutcomeSuccessWithFailures = (outcomes, students, threshold = 50) => {
+    const arr = Array.isArray(outcomes) ? outcomes : [];
+    const studentCount = Array.isArray(students) ? students.length : 0;
+
+    return arr.map((outcome, index) => {
+        const successRate = toNum(outcome?.successRate ?? outcome?.rate, 0);
+
+        // Başarısız öğrenci listesi (analysisEngine'den geliyor)
+        const failingStudents = Array.isArray(outcome?.failingStudents)
+            ? outcome.failingStudents
+            : [];
+
+        // ✅ Gerçek başarısız sayısı (liste uzunluğu)
+        const failedCount = failingStudents.length;
+        const passedCount = studentCount - failedCount;
+
+        return {
+            index,
+            label: `K${index + 1}`,
+            title: outcome?.title || outcome?.name || `Kazanım ${index + 1}`,
+            passedCount,
+            failedCount,
+            totalCount: studentCount,
+            successRate,
+            failingStudents: sortStudentsByNo(failingStudents), // No'ya göre sırala
+            color: successRate >= threshold ? "#22C55E" : successRate >= 40 ? "#F59E0B" : "#EF4444"
+        };
+    });
+};

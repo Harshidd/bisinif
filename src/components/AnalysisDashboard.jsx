@@ -96,25 +96,29 @@ const AnalysisDashboard = ({ students, grades, questions, config }) => {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handlePrint} className="hidden md:flex">
-              <Printer className="w-4 h-4 mr-2" /> Yazdır
-            </Button>
-            <Button variant="outline" size="sm" onClick={exportToExcel} className="hidden md:flex border-green-200 text-green-700 hover:bg-green-50">
-              <FileSpreadsheet className="w-4 h-4 mr-2" /> Excel
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={exportToPDF}
-              disabled={isExporting}
-              className="bg-blue-600 hover:bg-blue-700 group min-w-[120px]"
-            >
-              {isExporting ? (
-                <span className="flex items-center">Hazırlanıyor...</span>
-              ) : (
-                <span className="flex items-center"><Download className="w-4 h-4 mr-2 group-hover:animate-bounce" /> PDF İndir</span>
-              )}
-            </Button>
+            {activeSection !== 'karne' && (
+              <>
+                <Button variant="outline" size="sm" onClick={handlePrint} className="hidden md:flex">
+                  <Printer className="w-4 h-4 mr-2" /> Yazdır
+                </Button>
+                <Button variant="outline" size="sm" onClick={exportToExcel} className="hidden md:flex border-green-200 text-green-700 hover:bg-green-50">
+                  <FileSpreadsheet className="w-4 h-4 mr-2" /> Excel
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={exportToPDF}
+                  disabled={isExporting}
+                  className="bg-blue-600 hover:bg-blue-700 group min-w-[120px]"
+                >
+                  {isExporting ? (
+                    <span className="flex items-center">Hazırlanıyor...</span>
+                  ) : (
+                    <span className="flex items-center"><Download className="w-4 h-4 mr-2 group-hover:animate-bounce" /> PDF İndir</span>
+                  )}
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>

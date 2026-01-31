@@ -2,7 +2,7 @@ import React, { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/Card'
 import { Target, CheckCircle2, XCircle, Users } from 'lucide-react'
 import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts'
 
 export const OutcomeAnalysisSection = ({ analysis, config }) => {
@@ -23,20 +23,6 @@ export const OutcomeAnalysisSection = ({ analysis, config }) => {
         }))
     }, [analysis, outcomes])
 
-    const CustomTooltip = ({ active, payload, label }) => {
-        if (active && payload && payload.length) {
-            return (
-                <div className="bg-white/95 backdrop-blur-sm p-3 rounded-xl shadow-lg border border-slate-200">
-                    <p className="font-semibold text-slate-800">{label}</p>
-                    <p className="text-sm">
-                        Başarı: <span className="font-bold text-blue-600">%{payload[0].value.toFixed(1)}</span>
-                    </p>
-                </div>
-            )
-        }
-        return null
-    }
-
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             <div>
@@ -51,31 +37,68 @@ export const OutcomeAnalysisSection = ({ analysis, config }) => {
                         <Target className="w-5 h-5 text-emerald-500" />
                         Kazanım Başarı Oranları
                     </CardTitle>
-                    <CardDescription>Her kazanım için sınıf ortalama başarısı</CardDescription>
+                    <CardDescription>Her kazanım için başarılı ve başarısız öğrenci sayıları</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="h-[350px] w-full">
+                    <div className="h-[400px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart
-                                data={outcomeStats.map((o, i) => ({
-                                    name: `S${i + 1}`,
-                                    fullTitle: o.title,
-                                    başarı: o.successRate,
-                                }))}
-                                layout="vertical"
-                                margin={{ left: 10, right: 30, top: 10, bottom: 10 }}
-                                barCategoryGap="20%"
+                                data={outcomeStats.map((o, i) => {
+                                    const totalStudents = analysis?.studentResults?.length ?? 0
+                                    const failedCount = o.failingStudents?.length ?? 0
+                                    const passedCount = totalStudents - failedCount
+
+                                    return {
+                                        name: `K${i + 1}`,
+                                        fullTitle: o.title,
+                                        başarılı: passedCount,
+                                        başarısız: failedCount,
+                                        toplam: totalStudents
+                                    }
+                                })}
+                                margin={{ left: 20, right: 20, top: 20, bottom: 80 }}
                             >
-                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-                                <XAxis type="number" domain={[0, 100]} hide />
-                                <YAxis dataKey="name" type="category" width={30} tick={{ fontSize: 12, fontWeight: 600 }} />
-                                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
-                                <ReferenceLine x={masteryThreshold} stroke="#f59e0b" strokeDasharray="4 4" />
-                                <Bar dataKey="başarı" radius={[0, 6, 6, 0]}>
-                                    {outcomeStats.map((o, index) => (
-                                        <Cell key={index} fill={o.successRate >= masteryThreshold ? '#10b981' : '#ef4444'} />
-                                    ))}
-                                </Bar>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                <XAxis
+                                    dataKey="name"
+                                    angle={-45}
+                                    textAnchor="end"
+                                    height={80}
+                                    tick={{ fontSize: 11, fontWeight: 600 }}
+                                />
+                                <YAxis
+                                    label={{
+                                        value: 'Öğrenci Sayısı',
+                                        angle: -90,
+                                        position: 'insideLeft',
+                                        style: { fontSize: 12, fontWeight: 600 }
+                                    }}
+                                />
+                                <Tooltip
+                                    content={({ active, payload, label }) => {
+                                        if (active && payload && payload.length) {
+                                            const data = payload[0].payload
+                                            return (
+                                                <div className="bg-white/95 backdrop-blur-sm p-3 rounded-xl shadow-lg border border-slate-200">
+                                                    <p className="font-semibold text-slate-800 mb-2">{label}: {data.fullTitle}</p>
+                                                    <p className="text-sm text-emerald-600">
+                                                        Başarılı: <span className="font-bold">{data.başarılı} öğrenci</span>
+                                                    </p>
+                                                    <p className="text-sm text-red-600">
+                                                        Başarısız: <span className="font-bold">{data.başarısız} öğrenci</span>
+                                                    </p>
+                                                    <p className="text-sm text-slate-600 mt-1 pt-1 border-t border-slate-200">
+                                                        Toplam: <span className="font-bold">{data.toplam} öğrenci</span>
+                                                    </p>
+                                                </div>
+                                            )
+                                        }
+                                        return null
+                                    }}
+                                    cursor={{ fill: 'transparent' }}
+                                />
+                                <Bar dataKey="başarılı" stackId="a" fill="#22C55E" radius={[0, 0, 0, 0]} name="Başarılı" />
+                                <Bar dataKey="başarısız" stackId="a" fill="#EF4444" radius={[4, 4, 0, 0]} name="Başarısız" />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>

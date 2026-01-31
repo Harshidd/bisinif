@@ -123,67 +123,98 @@ export const StudentReportSection = ({ analysis, config }) => {
     const schoolName = config?.schoolName ?? 'Okul Adı Girilmedi'
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-2xl font-bold text-slate-900">Öğrenci Karnesi</h2>
-                    <p className="text-slate-500">Bireysel öğrenci performans raporu</p>
-                </div>
-                {/* Tüm Karneleri İndir Butonu */}
-                {students.length > 0 && (
-                    <Button
-                        onClick={handleAllCardsPDF}
-                        disabled={isExportingAll}
-                        variant="outline"
-                        className="no-print"
-                    >
-                        <FileDown className="w-4 h-4 mr-2" />
-                        {isExportingAll ? 'Hazırlanıyor...' : `Tüm Karneler (${students.length})`}
-                    </Button>
-                )}
-            </div>
-
-            {/* Selector Card */}
-            <Card className="border border-blue-100 shadow-sm bg-blue-50/50">
-                <CardContent className="pt-6">
-                    <div className="flex flex-col md:flex-row gap-4 items-center">
-                        <div className="flex-1 w-full">
-                            <label className="text-sm font-medium text-blue-900 mb-1.5 block">Öğrenci Seçin</label>
-                            <select
-                                className="w-full p-2.5 rounded-lg border border-blue-200 bg-white text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
-                                value={selectedStudentId}
-                                onChange={(e) => setSelectedStudentId(e.target.value)}
-                            >
-                                <option value="">-- Listeden Seçin --</option>
-                                {students.map(s => {
-                                    // 5) Safe display in dropdown
-                                    const name = s.name ?? 'İsimsiz'
-                                    const no = s.no ?? s.studentNumber ?? '-'
-                                    const t = getSafeTotal(s.total).toFixed(0)
-                                    return (
-                                        <option key={s.id} value={s.id}>
-                                            {no} - {name} ({t} Puan)
-                                        </option>
-                                    )
-                                })}
-                            </select>
-                        </div>
-                        {selectedStudent && (
-                            <div className="flex gap-2 self-end no-print">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handlePDFExport}
-                                    disabled={isExporting}
+        <div className="space-y-6">
+            <Card>
+                <CardContent className="p-6">
+                    <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+                        <div className="w-full md:w-1/3">
+                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                                Öğrenci Seçin
+                            </label>
+                            <div className="relative">
+                                <select
+                                    className="w-full p-2 pl-9 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
+                                    value={selectedStudentId}
+                                    onChange={(e) => setSelectedStudentId(e.target.value)}
                                 >
-                                    <Download className="w-4 h-4 mr-2" />
-                                    {isExporting ? 'Hazırlanıyor...' : 'PDF İndir'}
-                                </Button>
-                                <Button variant="outline" size="sm" onClick={handlePrint}>
-                                    <Printer className="w-4 h-4 mr-2" /> Yazdır
-                                </Button>
+                                    <option value="">Öğrenci Seçiniz...</option>
+                                    {[...students]
+                                        .sort((a, b) => {
+                                            const totalA = getSafeTotal(a.total)
+                                            const totalB = getSafeTotal(b.total)
+
+                                            // Önce puana göre (düşükten yükseğe)
+                                            if (totalA !== totalB) {
+                                                return totalA - totalB
+                                            }
+
+                                            // Puanlar eşitse numaraya göre
+                                            const noA = parseInt(a.no || a.studentNumber || '9999')
+                                            const noB = parseInt(b.no || b.studentNumber || '9999')
+                                            return noA - noB
+                                        })
+                                        .map(s => (
+                                            <option key={s.id} value={s.id}>
+                                                {s.no} - {s.name} ({getSafeTotal(s.total).toFixed(0)})
+                                            </option>
+                                        ))}
+                                </select>
+                                <User className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                             </div>
-                        )}
+                        </div>
+
+                        <div className="flex gap-2 w-full md:w-auto">
+                            {/* Toplu Karne İndirme Butonu */}
+                            <Button
+                                onClick={handleAllCardsPDF}
+                                disabled={isExportingAll}
+                                variant="outline"
+                                className="flex-1 md:flex-none border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                            >
+                                {isExportingAll ? (
+                                    <>
+                                        <span className="animate-spin mr-2">⏳</span>
+                                        Hazırlanıyor...
+                                    </>
+                                ) : (
+                                    <>
+                                        <FileDown className="w-4 h-4 mr-2" />
+                                        Toplu Karne İndir ({students.length})
+                                    </>
+                                )}
+                            </Button>
+
+                            {selectedStudent && (
+                                <>
+                                    <Button
+                                        onClick={handlePrint}
+                                        variant="outline"
+                                        className="flex-1 md:flex-none"
+                                    >
+                                        <Printer className="w-4 h-4 mr-2" />
+                                        Yazdır
+                                    </Button>
+
+                                    <Button
+                                        onClick={handlePDFExport}
+                                        disabled={isExporting}
+                                        className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white"
+                                    >
+                                        {isExporting ? (
+                                            <>
+                                                <span className="animate-spin mr-2">⏳</span>
+                                                PDF Hazırlanıyor...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Download className="w-4 h-4 mr-2" />
+                                                Karne İndir PDF
+                                            </>
+                                        )}
+                                    </Button>
+                                </>
+                            )}
+                        </div>
                     </div>
                 </CardContent>
             </Card>
@@ -251,8 +282,8 @@ export const StudentReportSection = ({ analysis, config }) => {
                                             contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                                         />
                                         <Legend />
-                                        <Bar dataKey="Öğrenci" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Öğrenci" />
-                                        <Bar dataKey="Sınıf" fill="#e2e8f0" radius={[4, 4, 0, 0]} name="Sınıf Ort." />
+                                        <Bar dataKey="Öğrenci" fill="#EF4444" radius={[4, 4, 0, 0]} name="Öğrenci" />
+                                        <Bar dataKey="Sınıf" fill="#22C55E" radius={[4, 4, 0, 0]} name="Sınıf Ort." />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
