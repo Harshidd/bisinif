@@ -17,7 +17,8 @@
     "build:ios": "npm run build && npx cap sync ios",
     "deploy:android": "npm run build:android && npx cap open android",
     "deploy:ios": "npm run build:ios && npx cap open ios",
-    "mobile:yayinda": "npm run build && npx cap sync"
+    "mobile:yayinda": "npm run build && npx cap sync",
+    "postinstall": "echo 'Setup complete.'"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",

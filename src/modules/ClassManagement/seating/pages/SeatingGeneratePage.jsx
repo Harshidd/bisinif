@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, memo } from 'react'
 import {
     DndContext,
     closestCenter,
@@ -8,7 +8,8 @@ import {
     useSensors,
     DragOverlay,
     useDraggable,
-    useDroppable
+    useDroppable,
+    defaultDropAnimationSideEffects
 } from '@dnd-kit/core'
 import { seatingRepo } from '../repo/seatingRepo'
 import { generateSeatingPlan, validatePlan } from '../logic/algo'
@@ -21,16 +22,20 @@ import { Link, useNavigate } from 'react-router-dom'
 
 // --- DRAGGABLE ITEMS ---
 
-const DraggableStudent = ({ id, student, isLocked }) => {
+const DraggableStudent = memo(({ seatId, student, isLocked }) => {
+    // Unique ID for Draggable (Distinct from Seat Droppable ID)
+    const draggableId = `drag::${seatId}`
+
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-        id: id,
-        data: { studentId: student?.id, sourceSeatId: id },
+        id: draggableId,
+        data: { studentId: student?.id, sourceSeatId: seatId },
         disabled: isLocked || !student
     })
 
     const style = transform ? {
         transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
         zIndex: 999,
+        position: 'relative' // Maintain layout flow
     } : undefined
 
     if (!student) return null
@@ -42,17 +47,28 @@ const DraggableStudent = ({ id, student, isLocked }) => {
             {...listeners}
             {...attributes}
             className={`
-                w-full h-full flex flex-col items-center justify-center p-1 rounded-lg text-center select-none cursor-grab active:cursor-grabbing
-                ${isDragging ? 'opacity-50 ring-2 ring-blue-500 bg-blue-100' : isLocked ? 'cursor-default' : 'hover:bg-gray-50'}
+                w-full h-full flex flex-col items-center justify-center p-1.5 rounded-lg text-center select-none cursor-grab active:cursor-grabbing touch-none
+                transition-colors duration-200
+                ${isDragging ? 'opacity-30' : isLocked ? 'cursor-default' : 'hover:bg-blue-50/50'}
             `}
         >
-            <span className="text-xs font-bold text-gray-900 line-clamp-2 leading-tight">{student.name}</span>
-            {student._profile?.specialNeeds && <span className="text-[9px] text-red-500 font-bold mt-0.5">(!)</span>}
+            <div className={`
+                flex items-center justify-center w-8 h-8 rounded-full mb-1 text-xs font-bold shadow-sm
+                ${student.gender === 'K' ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700'}
+            `}>
+                {student.no || '?'}
+            </div>
+            <span className="text-[10px] font-bold text-gray-900 line-clamp-2 leading-tight px-1 break-words w-full">
+                {student.name}
+            </span>
+            {student._profile?.specialNeeds && (
+                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
+            )}
         </div>
     )
-}
+})
 
-const DroppableSeat = ({ seatId, isLocked, onToggleLock, children, isActive, warning }) => {
+const DroppableSeat = memo(({ seatId, isLocked, onToggleLock, children, warning }) => {
     const { setNodeRef, isOver } = useDroppable({
         id: seatId,
         disabled: isLocked
@@ -62,48 +78,76 @@ const DroppableSeat = ({ seatId, isLocked, onToggleLock, children, isActive, war
         <div
             ref={setNodeRef}
             className={`
-                relative flex-1 flex flex-col items-center justify-center min-h-[70px] rounded-lg border transition-all
-                ${isOver && !isLocked ? 'bg-blue-100 border-blue-400 ring-2 ring-blue-200' : ''}
-                ${isLocked ? 'bg-gray-100 border-gray-200' : 'bg-white border-gray-200'}
-                ${warning ? 'border-red-300 bg-red-50' : ''}
+                relative flex-1 flex flex-col items-center justify-center min-h-[90px] rounded-xl border transition-all duration-200
+                ${isOver && !isLocked ? 'bg-blue-50 border-blue-400 ring-2 ring-blue-200 shadow-md scale-[1.02]' : ''}
+                ${isLocked ? 'bg-gray-50/80 border-gray-200 bg-stripe-gray' : 'bg-white border-gray-200'}
+                ${warning ? 'border-red-300 bg-red-50/30' : ''}
             `}
         >
             {/* Pin Button */}
             <button
                 onClick={(e) => { e.stopPropagation(); onToggleLock(seatId); }}
-                className={`absolute top-1 right-1 p-1 rounded-full hover:bg-black/5 transition-colors z-10 ${isLocked ? 'text-gray-600' : 'text-gray-300 hover:text-gray-400'}`}
+                className={`
+                    absolute top-1 right-1 p-1 rounded-full hover:bg-black/5 transition-all z-10
+                    ${isLocked ? 'text-amber-500 bg-amber-50' : 'text-gray-300 hover:text-gray-400 opacity-0 group-hover:opacity-100'}
+                `}
                 title={isLocked ? "Kilidi Aç" : "Kilitle"}
             >
-                {isLocked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
+                {isLocked ? <Lock className="w-3 h-3 fill-current" /> : <Unlock className="w-3 h-3" />}
             </button>
 
             {/* Warning Dot */}
             {warning && (
-                <div className="absolute top-1 left-1 w-2 h-2 bg-red-500 rounded-full animate-pulse" title={warning.message}></div>
+                <div className="absolute top-1 left-1 group/warn">
+                    <AlertCircle className="w-4 h-4 text-red-500" />
+                    <div className="hidden group-hover/warn:block absolute top-5 left-0 w-48 bg-gray-900 text-white text-[10px] p-2 rounded z-50 shadow-lg">
+                        {warning.message}
+                    </div>
+                </div>
             )}
 
-            {children}
+            <div className="w-full h-full flex flex-col p-1 group">
+                {children}
+            </div>
         </div>
     )
-}
+})
 
 // --- GRID COMPONENT ---
 
-const SeatGrid = ({ setup, assignments, students, pinnedSeats, onToggleLock, violations }) => {
+const SeatGrid = memo(({ setup, assignments, students, pinnedSeats, onToggleLock, violations }) => {
     const rows = Array.from({ length: setup.rows }, (_, i) => i + 1)
     const cols = Array.from({ length: setup.cols }, (_, i) => i + 1)
 
-    const getWarning = (seatId) => violations.find(v => v.seatId === seatId)
+    // Helper map for fast violation lookup
+    const violationMap = React.useMemo(() => {
+        const map = {}
+        violations.forEach(v => {
+            if (v.seatId) map[v.seatId] = v
+        })
+        return map
+    }, [violations])
+
+    // Helper to get student
+    const getStudent = useCallback((seatId) => {
+        const studentId = assignments[seatId]
+        if (!studentId) return null
+        return students.find(s => s.id === studentId)
+    }, [assignments, students])
 
     return (
-        <div className="flex flex-col gap-4 items-center overflow-x-auto p-4 bg-gray-50 rounded-xl border border-gray-200 select-none">
-            <div className="w-full max-w-md bg-gray-200 text-gray-500 text-xs text-center py-1 rounded-full mb-4">
-                TAHTA / ÖĞRETMEN MASASI
+        <div className="flex flex-col gap-6 items-center overflow-x-auto p-8 bg-gray-50/50 rounded-2xl border border-gray-200/50 select-none min-h-[600px] justify-start">
+
+            {/* Board Indicator */}
+            <div className="w-full max-w-2xl flex items-center justify-center gap-4 text-gray-300">
+                <div className="h-px bg-gray-200 w-full"></div>
+                <div className="whitespace-nowrap font-bold text-[10px] tracking-[0.2em] uppercase text-gray-400">Tahta / Öğretmen Masası</div>
+                <div className="h-px bg-gray-200 w-full"></div>
             </div>
 
             <div
-                className="grid gap-x-8 gap-y-6"
-                style={{ gridTemplateColumns: `repeat(${setup.cols}, minmax(140px, 1fr))` }}
+                className="grid gap-x-6 gap-y-6"
+                style={{ gridTemplateColumns: `repeat(${setup.cols}, minmax(130px, 150px))` }}
             >
                 {rows.map(r => (
                     React.FragmentKey = r,
@@ -112,40 +156,38 @@ const SeatGrid = ({ setup, assignments, students, pinnedSeats, onToggleLock, vio
                         const rightId = `R${r}-C${c}-R`
                         const singleId = `R${r}-C${c}`
 
-                        const getStudent = (id) => students.find(s => s.id === assignments[id])
-
                         if (setup.deskType === 'double') {
                             return (
-                                <div key={`desk-${r}-${c}`} className="flex gap-1 p-2 bg-white rounded-xl shadow-sm border border-gray-200">
+                                <div key={`desk-${r}-${c}`} className="flex gap-0.5 p-1.5 bg-white rounded-2xl shadow-sm border border-gray-200 ring-1 ring-gray-100">
                                     <DroppableSeat
                                         seatId={leftId}
                                         isLocked={pinnedSeats.includes(leftId)}
                                         onToggleLock={onToggleLock}
-                                        warning={getWarning(leftId)}
+                                        warning={violationMap[leftId]}
                                     >
-                                        <DraggableStudent id={leftId} student={getStudent(leftId)} isLocked={pinnedSeats.includes(leftId)} />
+                                        <DraggableStudent seatId={leftId} student={getStudent(leftId)} isLocked={pinnedSeats.includes(leftId)} />
                                     </DroppableSeat>
-                                    <div className="w-[1px] bg-gray-200 my-2"></div>
+
                                     <DroppableSeat
                                         seatId={rightId}
                                         isLocked={pinnedSeats.includes(rightId)}
                                         onToggleLock={onToggleLock}
-                                        warning={getWarning(rightId)}
+                                        warning={violationMap[rightId]}
                                     >
-                                        <DraggableStudent id={rightId} student={getStudent(rightId)} isLocked={pinnedSeats.includes(rightId)} />
+                                        <DraggableStudent seatId={rightId} student={getStudent(rightId)} isLocked={pinnedSeats.includes(rightId)} />
                                     </DroppableSeat>
                                 </div>
                             )
                         } else {
                             return (
-                                <div key={`desk-${r}-${c}`} className="flex flex-col items-center justify-center p-1 bg-white rounded-xl shadow-sm border border-gray-200 min-h-[90px]">
+                                <div key={`desk-${r}-${c}`} className="flex flex-col items-center justify-center p-1.5 bg-white rounded-2xl shadow-sm border border-gray-200 ring-1 ring-gray-100 min-h-[100px]">
                                     <DroppableSeat
                                         seatId={singleId}
                                         isLocked={pinnedSeats.includes(singleId)}
                                         onToggleLock={onToggleLock}
-                                        warning={getWarning(singleId)}
+                                        warning={violationMap[singleId]}
                                     >
-                                        <DraggableStudent id={singleId} student={getStudent(singleId)} isLocked={pinnedSeats.includes(singleId)} />
+                                        <DraggableStudent seatId={singleId} student={getStudent(singleId)} isLocked={pinnedSeats.includes(singleId)} />
                                     </DroppableSeat>
                                 </div>
                             )
@@ -155,7 +197,7 @@ const SeatGrid = ({ setup, assignments, students, pinnedSeats, onToggleLock, vio
             </div>
         </div>
     )
-}
+})
 
 // --- SETUP PANEL ---
 const SetupPanel = ({ setup, onChange, mode, onModeChange }) => (
@@ -176,34 +218,37 @@ const SetupPanel = ({ setup, onChange, mode, onModeChange }) => (
                     </div>
                 </div>
                 <div>
-                    <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Ön Sıra</label>
+                    <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Ön Sıra Derinliği</label>
                     <input type="number" min="1" max="3" value={setup.frontRows} onChange={e => onChange({ ...setup, frontRows: parseInt(e.target.value) })} className="w-full p-2 text-sm font-medium border border-gray-200 rounded-lg text-center focus:ring-2 focus:ring-blue-100 outline-none" />
                 </div>
             </div>
 
             <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Grid Boyutu (Satır x Sütun)</label>
+                <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Düzen (Satır x Sütun)</label>
                 <div className="flex gap-2 items-center">
-                    <input type="number" min="1" max="10" value={setup.rows} onChange={e => onChange({ ...setup, rows: parseInt(e.target.value) })} className="w-full p-2 text-sm font-medium border border-gray-200 rounded-lg text-center" />
+                    <input type="number" min="1" max="10" placeholder="Satır" value={setup.rows} onChange={e => onChange({ ...setup, rows: parseInt(e.target.value) })} className="w-full p-2 text-sm font-medium border border-gray-200 rounded-lg text-center" />
                     <span className="text-gray-300 font-bold">X</span>
-                    <input type="number" min="1" max="10" value={setup.cols} onChange={e => onChange({ ...setup, cols: parseInt(e.target.value) })} className="w-full p-2 text-sm font-medium border border-gray-200 rounded-lg text-center" />
+                    <input type="number" min="1" max="10" placeholder="Sütun" value={setup.cols} onChange={e => onChange({ ...setup, cols: parseInt(e.target.value) })} className="w-full p-2 text-sm font-medium border border-gray-200 rounded-lg text-center" />
                 </div>
             </div>
         </div>
 
         {/* Algorithm Mode */}
         <div className="space-y-3 pt-4 border-t border-gray-100">
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block">Algoritma</label>
+            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block">Otomatik Dağıtım</label>
             <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Dağılım Modu</label>
+                <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Strateji</label>
                 <select
                     value={mode}
                     onChange={(e) => onModeChange(e.target.value)}
                     className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 focus:outline-none focus:border-blue-500"
                 >
-                    <option value="free">Serbest (Karışık)</option>
-                    <option value="girl_boy">Kız - Erkek (Dengeli)</option>
+                    <option value="free">Akıllı Dağıtım (Standart)</option>
+                    <option value="girl_boy">Kız - Erkek Dengeli</option>
                 </select>
+                <p className="text-[10px] text-gray-400 mt-2">
+                    * Her hafta pazartesi günü oturma planı otomatik olarak rotasyon yapar.
+                </p>
             </div>
         </div>
     </div>
@@ -212,9 +257,9 @@ const SetupPanel = ({ setup, onChange, mode, onModeChange }) => (
 // --- MAIN PAGE ---
 
 export default function SeatingGeneratePage() {
-    const navigate = useNavigate()
+    // const navigate = useNavigate() // Unused
     const [setup, setSetup] = useState(seatingRepo.loadSetup())
-    const [mode, setMode] = useState('free') // New State for Mode
+    const [mode, setMode] = useState('free')
     const [assignments, setAssignments] = useState({})
     const [pinnedSeats, setPinnedSeats] = useState([])
     const [stats, setStats] = useState({ placed: 0, unplaced: 0 })
@@ -236,22 +281,20 @@ export default function SeatingGeneratePage() {
             setAssignments(savedPlan.assignments || {})
             setPinnedSeats(savedPlan.pinnedSeatIds || [])
             setStats(savedPlan.stats || {})
-            // Re-validate
             if (savedPlan.assignments) {
                 const roster = classRepo.getStudents()
                 const conflicts = classRepo.listConflicts()
-                const rules = seatingRepo.loadRules()
-                setViolations(validatePlan(savedPlan.assignments, savedPlan.seats, roster, conflicts, rules))
+                setViolations(validatePlan(savedPlan.assignments, savedPlan.seats, roster, conflicts)) // Updated validate signature
             }
         }
     }, [])
 
-    const savePlan = (newAssignments, newPinned) => {
+    const savePlan = useCallback((newAssignments, newPinned) => {
         const roster = classRepo.getStudents()
         const conflicts = classRepo.listConflicts()
-        const rules = seatingRepo.loadRules()
 
         // Re-construct logic-friendly structure for validation (need seats array)
+        // Optimization: Generate seats array only when needed or use cached layout
         const seats = []
         for (let r = 1; r <= setup.rows; r++) {
             for (let c = 1; c <= setup.cols; c++) {
@@ -264,7 +307,7 @@ export default function SeatingGeneratePage() {
             }
         }
 
-        const newViolations = validatePlan(newAssignments, seats, roster, conflicts, rules)
+        const newViolations = validatePlan(newAssignments, seats, roster, conflicts)
 
         const placedCount = Object.values(newAssignments).filter(Boolean).length
         const total = roster.length
@@ -285,17 +328,17 @@ export default function SeatingGeneratePage() {
             assignments: newAssignments,
             pinnedSeatIds: newPinned,
             stats: savedStats,
-            seats: seats
+            seats: seats,
+            manualMoves: (seatingRepo.loadPlan()?.manualMoves || 0) + 1 // Increment manual moves
         })
-    }
+    }, [setup]) // Setup dependency is important
 
     const handleGenerate = () => {
         setLoading(true)
         setTimeout(() => {
             seatingRepo.saveSetup(setup)
-            // Pass current state AND mode
             const currentPlan = { assignments, pinnedSeatIds: pinnedSeats }
-            const result = generateSeatingPlan(currentPlan, mode) // Pass mode
+            const result = generateSeatingPlan(currentPlan, mode)
 
             if (result.error) {
                 alert(result.error)
@@ -304,16 +347,8 @@ export default function SeatingGeneratePage() {
                 setPinnedSeats(result.pinnedSeatIds)
                 setStats(result.stats)
                 setViolations(result.violations || [])
-
-                // Save and Push to History
                 seatingRepo.savePlan(result)
-                seatingRepo.pushToHistory({
-                    ...result,
-                    setup: setup,
-                    rows: setup.rows,
-                    cols: setup.cols
-                }, true) // isAuto = true
-
+                seatingRepo.pushToHistory({ ...result, setup, rows: setup.rows, cols: setup.cols }, true)
                 setMessage('Yeni plan oluşturuldu')
                 setTimeout(() => setMessage(null), 2000)
             }
@@ -325,12 +360,18 @@ export default function SeatingGeneratePage() {
         const { active, over } = event
         setActiveId(null)
 
-        if (!over || active.id === over.id) return
+        if (!over) return
 
-        const sourceSeatId = active.id
+        // Extract Seat ID from Draggable ID (drag::R1-C1-L -> R1-C1-L)
+        const sourceSeatId = active.id.replace('drag::', '')
         const targetSeatId = over.id
 
-        if (pinnedSeats.includes(targetSeatId)) return
+        if (sourceSeatId === targetSeatId) return
+
+        if (pinnedSeats.includes(targetSeatId)) {
+            // Optional: Shake effect or specific feedback
+            return
+        }
 
         const sourceStudentId = assignments[sourceSeatId]
         const targetStudentId = assignments[targetSeatId]
@@ -338,9 +379,11 @@ export default function SeatingGeneratePage() {
         const newAssignments = { ...assignments }
 
         if (targetStudentId) {
+            // SWAP
             newAssignments[sourceSeatId] = targetStudentId
             newAssignments[targetSeatId] = sourceStudentId
         } else {
+            // MOVE
             newAssignments[targetSeatId] = sourceStudentId
             newAssignments[sourceSeatId] = null
         }
@@ -353,7 +396,6 @@ export default function SeatingGeneratePage() {
         setActiveId(event.active.id)
     }
 
-    // ... toggleLock, handleReset, handleDownloadReport remain same ...
     const toggleLock = (seatId) => {
         const newPinned = pinnedSeats.includes(seatId)
             ? pinnedSeats.filter(id => id !== seatId)
@@ -365,7 +407,6 @@ export default function SeatingGeneratePage() {
     const handleReset = () => {
         if (window.confirm('Oturma planı sıfırlanacak (Kilitli koltuklar hariç). Onaylıyor musunuz?')) {
             const newAssignments = { ...assignments }
-            // Clear unpinned assignments
             Object.keys(newAssignments).forEach(key => {
                 if (!pinnedSeats.includes(key)) newAssignments[key] = null
             })
@@ -379,15 +420,13 @@ export default function SeatingGeneratePage() {
             alert('Rapor almak için önce bir plan oluşturmalısınız.')
             return
         }
-
+        // ... (Report logic maintained)
         const btn = document.getElementById('btn-report')
         if (btn) btn.disabled = true;
 
         try {
-            const rules = seatingRepo.loadRules()
-            const meta = classRepo.loadMeta() || {} // Load Meta
-
-            // Re-calculate violations for the report to be sure
+            const rules = seatingRepo.loadRules() // Legacy support if needed
+            const meta = classRepo.loadMeta() || {}
             const reportData = generateReportData({
                 stats,
                 manualMoves: seatingRepo.loadPlan()?.manualMoves || 0
@@ -399,7 +438,7 @@ export default function SeatingGeneratePage() {
                     assignments={assignments}
                     students={students}
                     reportData={reportData}
-                    violations={violations}
+                    violations={violations} // Passed updated violations
                     meta={meta}
                 />
             )
@@ -421,6 +460,25 @@ export default function SeatingGeneratePage() {
     }
 
     if (students.length === 0) return (<div className="p-8 text-center text-gray-500">Liste boş.</div>)
+
+    // Helper to find dragged student for overlay
+    const getDraggedDetails = () => {
+        if (!activeId) return null
+        const seatId = activeId.replace('drag::', '')
+        const studentId = assignments[seatId]
+        return students.find(s => s.id === studentId)
+    }
+    const draggedStudent = getDraggedDetails()
+
+    const dropAnimation = {
+        sideEffects: defaultDropAnimationSideEffects({
+            styles: {
+                active: {
+                    opacity: '0.4',
+                },
+            },
+        }),
+    }
 
     return (
         <DndContext
@@ -479,7 +537,7 @@ export default function SeatingGeneratePage() {
                     <div className="space-y-6">
                         <SetupPanel setup={setup} onChange={setSetup} mode={mode} onModeChange={setMode} />
 
-                        {/* Stats Panel - FIXED UI */}
+                        {/* Stats Panel */}
                         <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="font-bold text-gray-900 text-sm">Durum Özeti</h3>
@@ -548,10 +606,16 @@ export default function SeatingGeneratePage() {
             </div>
 
             {/* Drag Overlay */}
-            <DragOverlay>
-                {activeId ? (
-                    <div className="w-[120px] h-[60px] bg-white border-2 border-blue-500 shadow-xl rounded-lg flex items-center justify-center p-2 opacity-90 cursor-grabbing">
-                        <span className="text-xs font-bold text-gray-900">{students.find(s => s.id === assignments[activeId])?.name}</span>
+            <DragOverlay dropAnimation={dropAnimation}>
+                {draggedStudent ? (
+                    <div className="w-[140px] h-[70px] bg-white border-2 border-blue-500 shadow-2xl rounded-xl flex flex-col items-center justify-center p-2 cursor-grabbing ring-4 ring-blue-500/20 rotate-3">
+                        <div className={`
+                            flex items-center justify-center w-8 h-8 rounded-full mb-1 text-xs font-bold shadow-sm
+                            ${draggedStudent.gender === 'K' ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700'}
+                        `}>
+                            {draggedStudent.no}
+                        </div>
+                        <span className="text-xs font-bold text-gray-900">{draggedStudent.name}</span>
                     </div>
                 ) : null}
             </DragOverlay>

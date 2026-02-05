@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, memo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, memo, useCallback, useRef } from 'react'
 import { classRepo } from '../repo/classRepo'
 import StudentImporter from '../../../components/StudentImporter'
 import StudentEditorModal from '../components/StudentEditorModal'
@@ -9,19 +9,21 @@ import InlineToggle from '../components/InlineToggle'
 import InlineTags from '../components/InlineTags'
 import { Trash2, Edit2, Search, UserPlus, Filter, ArrowUpDown, FileText, Users, ShieldAlert } from 'lucide-react'
 
-// Options for dropdowns
+// Options for dropdowns - Stable constants
 const GENDER_OPTIONS = [
     { value: 'K', label: 'Kız' },
     { value: 'E', label: 'Erkek' },
 ]
 
 const TAG_OPTIONS = ['Dikkat', 'Gözlük', 'Kaynaştırma', 'Davranış', 'İşitme', 'Bedensel', 'Solak']
+const EMPTY_ARRAY = []
 
 /**
  * OPTIMIZED ROW COMPONENT
- * - Uses mostly primitive props for efficient memoization.
- * - 'tags' is an array, but we rely on the parent to manage its reference or use equality check if needed.
- * - 'conflictCount' replaces the conflicts array to avoid O(N) filtering in parent render loop.
+ * Completely memoized.
+ * - Receives ONLY primitive props (ids, strings, numbers, booleans) to ensure React.memo works.
+ * - 'tagsStr' is passed instead of array to prevent reference issues.
+ * - 'conflictCount' passed as primitive number.
  */
 const StudentRow = memo(({
     studentId,
@@ -30,19 +32,22 @@ const StudentRow = memo(({
     studentNumber,
     gender,
     frontRowPreferred,
-    tags,
-    conflictCount,
+    tagsStr, // Primitive string "Tag1,Tag2"
+    conflictCount, // Primitive number
+    hasConflict,   // Primitive boolean
     onUpdateGender,
     onUpdateProfile,
     onEdit,
     onDelete,
     onOpenConflicts
 }) => {
+    // Re-hydrate tags array for the component, memoized locally
+    // string.split is fast enough for individual row rendering
+    const tags = useMemo(() => {
+        return tagsStr ? tagsStr.split(',') : EMPTY_ARRAY
+    }, [tagsStr])
 
-    // Callbacks to avoid inline arrow functions in render if possible, 
-    // but wrappers are passed from parent. 
-    // We wrap calls to pass ID implicitly.
-
+    // Callbacks with ID pre-bound to avoid inline arrow functions in render
     const handleGenderChange = useCallback((val) => {
         onUpdateGender(studentId, val)
     }, [studentId, onUpdateGender])
@@ -54,6 +59,18 @@ const StudentRow = memo(({
     const handleTagsChange = useCallback((newTags) => {
         onUpdateProfile(studentId, { tags: newTags })
     }, [studentId, onUpdateProfile])
+
+    const handleOpenConflicts = useCallback(() => {
+        onOpenConflicts(studentId)
+    }, [studentId, onOpenConflicts])
+
+    const handleEdit = useCallback(() => {
+        onEdit(studentId)
+    }, [studentId, onEdit])
+
+    const handleDelete = useCallback(() => {
+        onDelete(studentId)
+    }, [studentId, onDelete])
 
     return (
         <tr className="border-b border-gray-50 hover:bg-blue-50/30 transition-colors group">
@@ -104,10 +121,10 @@ const StudentRow = memo(({
             {/* Conflicts Indicator */}
             <td className="py-3 px-4 w-24 text-center">
                 <button
-                    onClick={() => onOpenConflicts(studentId)}
+                    onClick={handleOpenConflicts}
                     className={`
                         p-2 rounded-lg transition-all relative
-                        ${conflictCount > 0
+                        ${hasConflict
                             ? 'bg-red-100 text-red-600 hover:bg-red-200 shadow-sm'
                             : 'text-gray-300 hover:text-gray-500 hover:bg-gray-100'}
                     `}
@@ -126,14 +143,14 @@ const StudentRow = memo(({
             <td className="py-3 px-4 w-28 text-right">
                 <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
-                        onClick={() => onEdit(studentId)}
+                        onClick={handleEdit}
                         className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Detaylı Düzenle"
                     >
                         <Edit2 className="w-4 h-4" />
                     </button>
                     <button
-                        onClick={() => onDelete(studentId)}
+                        onClick={handleDelete}
                         className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                         title="Sil"
                     >
@@ -144,8 +161,7 @@ const StudentRow = memo(({
         </tr>
     )
 }, (prev, next) => {
-    // Custom Memo Comparison for strict performance control
-    // Returns true if equal (do not re-render)
+    // STRICT EQUALITY CHECK FOR PRIMITIVES
     return (
         prev.studentId === next.studentId &&
         prev.no === next.no &&
@@ -153,9 +169,8 @@ const StudentRow = memo(({
         prev.gender === next.gender &&
         prev.frontRowPreferred === next.frontRowPreferred &&
         prev.conflictCount === next.conflictCount &&
-        // Array comparison for tags
-        prev.tags.length === next.tags.length &&
-        prev.tags.every((t, i) => t === next.tags[i])
+        prev.hasConflict === next.hasConflict &&
+        prev.tagsStr === next.tagsStr // String comparison is O(1) for short strings
     )
 })
 
@@ -176,6 +191,13 @@ export default function RosterPage() {
     const [isConflictModalOpen, setConflictModalOpen] = useState(false)
     const [conflictTargetId, setConflictTargetId] = useState(null)
 
+    // --- REFS FOR PERFORMANCE ---
+    // Keep a ref to students to access them in debounced functions without dependency issues
+    const studentsRef = useRef([])
+    useEffect(() => {
+        studentsRef.current = students
+    }, [students])
+
     // Initial Load
     useEffect(() => {
         refresh()
@@ -186,56 +208,108 @@ export default function RosterPage() {
         setConflicts(classRepo.listConflicts())
     }
 
-    // --- OPTIMIZED UPDATES (No full refresh) ---
+    // --- DEBOUNCED PERSISTENCE HOOK LOGIC ---
+    // Manages timeouts and accumulation of updates
 
-    const handleUpdateGender = useCallback((id, newGender) => {
-        // 1. Optimistic UI Update
-        setStudents(prev => prev.map(s => {
-            if (s.id === id) {
-                return { ...s, gender: newGender }
-            }
-            return s // Keep reference for others!
-        }))
+    // We store timeouts in refs to clear them across renders
+    const saveTimeouts = useRef({})
+    // We accumulate profile updates specifically because partial updates might come in sequence
+    const pendingProfileUpdates = useRef({})
 
-        // 2. Persist (Sync)
-        // We find the current student to be safe
-        const currentStudent = students.find(s => s.id === id)
-        if (currentStudent) {
-            classRepo.upsertRosterStudent({
-                ...currentStudent,
-                gender: newGender
-            })
+    const debouncedSaveStudent = useCallback((id, gender) => {
+        if (saveTimeouts.current[`student-${id}`]) {
+            clearTimeout(saveTimeouts.current[`student-${id}`])
         }
-    }, [students])
 
+        saveTimeouts.current[`student-${id}`] = setTimeout(() => {
+            // Get latest State from Ref to ensure we don't save stale data
+            const currentStudent = studentsRef.current.find(s => s.id === id)
+            if (currentStudent) {
+                // Ensure the gender we explicitly changed is the one being saved
+                // (Though optimistic state should have it, this is explicit safety)
+                classRepo.upsertRosterStudent({
+                    ...currentStudent,
+                    gender: gender
+                })
+            }
+            delete saveTimeouts.current[`student-${id}`]
+        }, 500)
+    }, [])
+
+    const debouncedSaveProfile = useCallback((id, updates) => {
+        // Accumulate updates for this ID
+        pendingProfileUpdates.current[id] = {
+            ...(pendingProfileUpdates.current[id] || {}),
+            ...updates
+        }
+
+        if (saveTimeouts.current[`profile-${id}`]) {
+            clearTimeout(saveTimeouts.current[`profile-${id}`])
+        }
+
+        saveTimeouts.current[`profile-${id}`] = setTimeout(() => {
+            const finalUpdates = pendingProfileUpdates.current[id]
+            if (finalUpdates) {
+                classRepo.upsertProfile(id, finalUpdates)
+            }
+            // Cleanup
+            delete saveTimeouts.current[`profile-${id}`]
+            delete pendingProfileUpdates.current[id]
+        }, 500)
+    }, [])
+
+
+    // --- OPTIMIZED HANDLERS ---
+
+    // Stable identity callback for Gender
+    const handleUpdateGender = useCallback((id, newGender) => {
+        // 1. Instant Optimistic UI Update
+        setStudents(prev => prev.map(s =>
+            s.id === id ? { ...s, gender: newGender } : s
+        ))
+
+        // 2. Debounced Persist
+        debouncedSaveStudent(id, newGender)
+    }, [debouncedSaveStudent])
+
+    // Stable identity callback for Profile
     const handleUpdateProfile = useCallback((id, updates) => {
-        // 1. Optimistic UI Update
+        // 1. Instant Optimistic UI Update
         setStudents(prev => prev.map(s => {
             if (s.id === id) {
-                // Determine what parts of profile changed for the UI object flattened properties
-                const updatedStudent = {
+                return {
                     ...s,
                     _profile: { ...s._profile, ...updates }
                 }
-                return updatedStudent
             }
             return s
         }))
 
-        // 2. Persist
-        classRepo.upsertProfile(id, updates)
-    }, [])
+        // 2. Debounced Persist
+        debouncedSaveProfile(id, updates)
+    }, [debouncedSaveProfile])
 
     const handleDelete = useCallback((id) => {
         if (window.confirm('Bu öğrenciyi ve tüm kayıtlarını silmek istediğinize emin misiniz?')) {
             classRepo.deleteStudentCascade(id)
-            refresh() // Delete requires full refresh to re-index potentially
+            refresh() // Delete is rare, full refresh is fine
         }
     }, [])
 
+    const openEdit = useCallback((id) => {
+        setEditTargetId(id)
+        setEditorOpen(true)
+    }, [])
+
+    const openConflicts = useCallback((id) => {
+        setConflictTargetId(id)
+        setConflictModalOpen(true)
+    }, [])
+
+
     // --- CONFLICTS OPTIMIZATION ---
-    // Create a Map of studentId -> conflictCount
-    // This runs only when the defaults conflict list changes, not on every render
+    // O(1) lookup Map. Only recalculates when `conflicts` array changes.
+    // Does NOT run on every render.
     const conflictMap = useMemo(() => {
         const map = {}
         conflicts.forEach(c => {
@@ -245,18 +319,19 @@ export default function RosterPage() {
         return map
     }, [conflicts])
 
+
     // --- CONFLICT MODAL ACTIONS ---
     const handleAddConflict = (idA, idB, reason) => {
         const res = classRepo.addConflict(idA, idB, reason)
         if (!res.success) {
             alert(res.error)
         } else {
-            // Only refresh conflicts part
             setConflicts(classRepo.listConflicts())
         }
     }
 
     // --- FILTER & SORT LOGIC ---
+    // Memoized to prevent re-filtering when unrelated states (like Modal open) change
     const filtered = useMemo(() => {
         let result = students
         const term = search.toLowerCase().trim()
@@ -272,8 +347,6 @@ export default function RosterPage() {
             result = result.filter(s => s.gender === filterGender)
         }
 
-        // Sort - ensure we copy the array to not mutate state
-        // Use Memo to prevent re-sorting unless criteria changes
         return [...result].sort((a, b) => {
             if (sortBy === 'NAME_ASC') return (a.name || '').localeCompare(b.name || '')
             if (sortBy === 'NO_ASC') {
@@ -286,21 +359,11 @@ export default function RosterPage() {
         })
     }, [students, search, filterGender, sortBy])
 
-    // Handlers
-    const openEdit = useCallback((id) => {
-        setEditTargetId(id)
-        setEditorOpen(true)
-    }, [])
-
+    // Action wrappers (Non-row) - Stable
     const openCreate = () => {
         setEditTargetId(null)
         setEditorOpen(true)
     }
-
-    const openConflicts = useCallback((id) => {
-        setConflictTargetId(id)
-        setConflictModalOpen(true)
-    }, [])
 
     return (
         <div className="pb-24 space-y-6 animate-fade-in relative min-h-[600px]">
@@ -351,6 +414,7 @@ export default function RosterPage() {
 
             {/* Filter Bar */}
             <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-3 bg-white p-2 rounded-xl border border-gray-200 shadow-sm">
+                {/* ... same as before but ensured state setters don't cause new objects unless needed ... */}
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                     <input
@@ -401,24 +465,39 @@ export default function RosterPage() {
                         </thead>
                         <tbody className="divide-y divide-gray-50">
                             {filtered.length > 0 ? (
-                                filtered.map(s => (
-                                    <StudentRow
-                                        key={s.id}
-                                        studentId={s.id}
-                                        no={s.no}
-                                        name={s.name || s.fullName}
-                                        studentNumber={s.studentNumber}
-                                        gender={s.gender}
-                                        frontRowPreferred={s._profile?.frontRowPreferred || false}
-                                        tags={s._profile?.tags || []} // Warning: Ensure this array is stable if empty
-                                        conflictCount={conflictMap[s.id] || 0}
-                                        onUpdateGender={handleUpdateGender}
-                                        onUpdateProfile={handleUpdateProfile}
-                                        onEdit={openEdit}
-                                        onDelete={handleDelete}
-                                        onOpenConflicts={openConflicts}
-                                    />
-                                ))
+                                filtered.map(s => {
+                                    // Calculate primitives for memoization
+                                    // Use stable 'conflictMap' for O(1)
+                                    const cCount = conflictMap[s.id] || 0
+
+                                    // Generate Safe String for Tags (Primitive prop)
+                                    // s._profile.tags is array, we join it to "Tag1,Tag2".
+                                    // If empty or null, we pass empty string.
+                                    // This prevents passing new Array reference [] on every render.
+                                    const tagsStr = s._profile?.tags ? s._profile.tags.join(',') : ''
+
+                                    return (
+                                        <StudentRow
+                                            key={s.id}
+                                            studentId={s.id}
+                                            no={s.no}
+                                            name={s.name || s.fullName}
+                                            studentNumber={s.studentNumber}
+                                            gender={s.gender}
+                                            frontRowPreferred={s._profile?.frontRowPreferred || false}
+                                            tagsStr={tagsStr}
+                                            conflictCount={cCount} // Primitive number
+                                            hasConflict={cCount > 0} // Primitive boolean
+
+                                            // Pass Stable Handlers
+                                            onUpdateGender={handleUpdateGender}
+                                            onUpdateProfile={handleUpdateProfile}
+                                            onEdit={openEdit}
+                                            onDelete={handleDelete}
+                                            onOpenConflicts={openConflicts}
+                                        />
+                                    )
+                                })
                             ) : (
                                 <tr>
                                     <td colSpan="7" className="py-12 text-center text-gray-400">
@@ -433,7 +512,7 @@ export default function RosterPage() {
                     </table>
                 </div>
 
-                {/* Footer / Count */}
+                {/* Footer */}
                 <div className="px-4 py-3 bg-gray-50/30 border-t border-gray-100 text-xs text-gray-500 font-medium flex justify-between items-center">
                     <span>Toplam {filtered.length} öğrenci listeleniyor</span>
                     <span>{students.length} Kayıtlı</span>
