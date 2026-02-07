@@ -61,3 +61,6 @@ Desktop.ini
 *.keystore
 *.jks
 release-key.properties
+
+# Build-time reports (generated, not committed)
+tooling/reports/*.json
