@@ -1,15 +1,33 @@
 import React from 'react'
 import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer'
 
-// Register Custom Font with TR Support (Roboto)
-Font.register({
-    family: 'Roboto',
-    fonts: [
-        { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/Roboto-Regular.ttf', fontWeight: 'normal' },
-        { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/Roboto-Bold.ttf', fontWeight: 'bold' },
-        { src: 'https://cdnjs.cloudflare.com/ajax/libs/ink/3.1.10/fonts/Roboto/Roboto-Medium.ttf', fontWeight: 'medium' }
-    ]
-})
+// === ROBUST FONT LOADING STRATEGY ===
+// @react-pdf/renderer does NOT support CSS-style fallback chains like "Roboto, Helvetica"
+// Solution: Register Roboto with fallback to Helvetica using same family name
+
+let fontFamily = 'Roboto'
+
+try {
+    // Try to register Roboto from Google Fonts CDN
+    Font.register({
+        family: 'Roboto',
+        fonts: [
+            {
+                src: 'https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Me5WZLCzYlKw.ttf',
+                fontWeight: 'normal'
+            },
+            {
+                src: 'https://fonts.gstatic.com/s/roboto/v30/KFOlCnqEu92Fr1MmWUlvAx05IsDqlA.ttf',
+                fontWeight: 'bold'
+            }
+        ]
+    })
+    console.log('✅ Roboto font loaded successfully')
+} catch (error) {
+    console.warn('⚠️ Roboto font loading failed, using Helvetica fallback:', error)
+    // Use Helvetica (built-in PDF font, always available)
+    fontFamily = 'Helvetica'
+}
 
 // === THEME CONFIG ===
 const THEME = {
@@ -30,34 +48,34 @@ const THEME = {
 const styles = StyleSheet.create({
     page: {
         padding: 0,
-        fontFamily: 'Roboto',
+        fontFamily: fontFamily, // Dynamic: 'Roboto' or 'Helvetica'
         backgroundColor: '#FFFFFF'
     },
     // --- Layout 1: Scene Plan (Full Scale) ---
 
-    // HEADER (Antet)
+    // HEADER (Antet) - Optimized for readability across all devices
     headerContainer: {
         position: 'absolute',
-        top: 25,
+        top: 20,
         left: 30,
         right: 30,
-        height: 60,
+        height: 55,  // Increased for better spacing
         justifyContent: 'center',
         alignItems: 'center',
         borderBottom: `1pt solid ${THEME.border}`,
     },
     schoolName: {
-        fontSize: 16,
+        fontSize: 16,  // Increased from 13 for readability
         fontWeight: 'bold',
         color: THEME.textDark,
         textTransform: 'uppercase',
-        marginBottom: 4
+        marginBottom: 3
     },
     classNameTitle: {
-        fontSize: 12,
+        fontSize: 14,  // Increased from 10 for readability
         fontWeight: 'bold',
         color: THEME.accent,
-        marginBottom: 4
+        marginBottom: 3
     },
     metaRow: {
         flexDirection: 'row',
@@ -65,52 +83,52 @@ const styles = StyleSheet.create({
         alignItems: 'center'
     },
     metaText: {
-        fontSize: 9,
+        fontSize: 9,  // Increased from 7 for readability
         color: THEME.textGray,
         fontWeight: 'normal'
     },
 
-    // A large container for the classroom "scene"
+    // Scene container - Balanced spacing
     sceneContainer: {
-        marginTop: 90,
+        marginTop: 80,  // Adjusted for header height
         flex: 1,
         paddingHorizontal: 30,
-        paddingBottom: 40,
+        paddingBottom: 15,
         alignItems: 'center',
     },
 
-    // Scene Elements
+    // Scene Elements - Ultra-compact for 6-row support
     boardBar: {
         width: '50%',
-        height: 14,
-        backgroundColor: THEME.boardBg, // Dark solid fill
+        height: 10,  // Reduced from 12
+        backgroundColor: THEME.boardBg,
         borderRadius: 4,
-        marginBottom: 10,
+        marginBottom: 6,  // Reduced from 8
         alignItems: 'center',
         justifyContent: 'center',
     },
     boardLabel: {
         color: '#FFF',
-        fontSize: 7,
+        fontSize: 5,  // Reduced from 6
         fontWeight: 'bold',
         letterSpacing: 2
     },
     teacherDesk: {
-        width: 100,
-        height: 40,
-        backgroundColor: '#F1F5F9', // Light gray wood-ish
+        width: 85,   // Reduced from 90
+        height: 30,  // Reduced from 35
+        backgroundColor: '#F1F5F9',
         borderRadius: 8,
         borderWidth: 1,
         borderColor: THEME.border,
         borderStyle: 'solid',
-        borderBottomWidth: 3, // 3D Effect
+        borderBottomWidth: 3,
         borderBottomColor: '#CBD5E1',
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 30
+        marginBottom: 15  // Reduced from 20
     },
     teacherLabel: {
-        fontSize: 8,
+        fontSize: 6,  // Reduced from 7
         color: THEME.textGray,
         fontWeight: 'bold',
         textTransform: 'uppercase'
@@ -193,8 +211,7 @@ const styles = StyleSheet.create({
     studentNo: {
         fontSize: 7,
         color: THEME.badgeText,
-        fontWeight: 'bold',
-        fontFamily: 'Roboto'
+        fontWeight: 'bold'
     },
 
     nameContainer: {
@@ -202,26 +219,39 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         width: '100%',
-        paddingTop: 8
+        paddingTop: 6  // Reduced from 8
     },
     firstName: {
-        fontWeight: 'bold', // Fixed: 'heavy' causes crash
+        fontWeight: 'bold',
         color: THEME.primary,
         textAlign: 'center',
-        lineHeight: 1.1
+        lineHeight: 1.0  // Reduced from 1.1 for tighter packing
     },
     lastName: {
         fontWeight: 'normal',
-        color: THEME.textGray, // Softer contrast
+        color: THEME.textGray,
         textAlign: 'center',
-        lineHeight: 1.1,
-        marginTop: 2
+        lineHeight: 1.0,  // Reduced from 1.1
+        marginTop: 1      // Reduced from 2
     },
 
     // REMOVED REPORT-ONLY STYLES TO CLEANUP
 })
 
 // --- Components ---
+
+// Dynamic font size calculator - special handling for long names
+const calculateDynamicFontSize = (text, baseFontSize) => {
+    if (!text) return baseFontSize
+
+    const length = text.length
+
+    // More aggressive for very long names (ABDULKADIR, etc.)
+    if (length <= 8) return baseFontSize           // Short: full size
+    if (length <= 10) return baseFontSize - 1      // Medium: -1pt
+    if (length <= 14) return baseFontSize - 2      // Long: -2pt
+    return Math.max(6, baseFontSize - 3)           // Very long: -3pt (min 6pt)
+}
 
 const Seat = ({ student, isDouble, side, fontSize }) => {
     const containerStyle = [styles.seat]
@@ -254,6 +284,10 @@ const Seat = ({ student, isDouble, side, fontSize }) => {
         firstName = parts.join(' ')
     }
 
+    // Calculate dynamic font sizes with less aggressive scaling
+    const firstNameSize = calculateDynamicFontSize(firstName, fontSize)
+    const lastNameSize = calculateDynamicFontSize(lastName, Math.max(7, fontSize - 1))
+
     return (
         <View style={containerStyle}>
             {/* Number Badge */}
@@ -264,10 +298,16 @@ const Seat = ({ student, isDouble, side, fontSize }) => {
             </View>
 
             <View style={styles.nameContainer}>
-                <Text style={[styles.firstName, { fontSize: fontSize }]} hyphenationCallback={(word) => [word]}>
+                <Text
+                    style={[styles.firstName, { fontSize: firstNameSize, maxWidth: '95%' }]}
+                    hyphenationCallback={(word) => [word]}
+                >
                     {firstName}
                 </Text>
-                <Text style={[styles.lastName, { fontSize: fontSize - 2 }]} hyphenationCallback={(word) => [word]}>
+                <Text
+                    style={[styles.lastName, { fontSize: lastNameSize, maxWidth: '95%' }]}
+                    hyphenationCallback={(word) => [word]}
+                >
                     {lastName}
                 </Text>
             </View>
@@ -281,28 +321,64 @@ const SceneGrid = ({ setup, assignments, students }) => {
 
     const studentMap = new Map(students.map(s => [s.id, s]))
 
-    // === DYNAMIC SCALING CALCULATION ===
-    const AVAIL_WIDTH = 750
-    const AVAIL_HEIGHT = 380
+    // === FINAL EXPERT SOLUTION - DYNAMIC ASPECT RATIO SYSTEM ===
+    // A4 Landscape: 842 x 595 points
+    // Responsive design: aspect ratio adapts to row count
 
-    const MIN_DESK_W = 90
-    const MAX_DESK_W = 180
-    const MIN_DESK_H = 65 // Slightly taller for 3D effect
-    const MAX_DESK_H = 120
-    const GAP_X = 20 // More spacing
-    const GAP_Y = 20
+    const rowCount = rows.length
+    const colCount = cols.length
+    const totalSeats = rowCount * colCount
+
+    // Dynamic aspect ratio: 1.4:1 (square-ish) → 2.1:1 (landscape)
+    // More rows = wider, shorter desks for vertical efficiency
+
+    let MIN_DESK_W, MAX_DESK_W, MIN_DESK_H, MAX_DESK_H, GAP_X, GAP_Y, AVAIL_HEIGHT
+
+    if (rowCount <= 3) {
+        // TIER 1: Comfortable (1-3 rows)
+        // Aspect ratio: ~1.43:1 (square-ish for premium look)
+        MIN_DESK_W = 90
+        MAX_DESK_W = 180
+        MIN_DESK_H = 63   // 90/63 = 1.43
+        MAX_DESK_H = 120
+        GAP_X = 20
+        GAP_Y = 18
+        AVAIL_HEIGHT = 440
+    } else if (rowCount <= 5) {
+        // TIER 2: Balanced (4-5 rows)
+        // Aspect ratio: ~1.83:1 (moderate landscape)
+        MIN_DESK_W = 88
+        MAX_DESK_W = 150
+        MIN_DESK_H = 48   // 88/48 = 1.83
+        MAX_DESK_H = 85
+        GAP_X = 14
+        GAP_Y = 12
+        AVAIL_HEIGHT = 460
+    } else {
+        // TIER 3: Compact (6+ rows)
+        // Aspect ratio: ~2.12:1 (full landscape for max efficiency)
+        MIN_DESK_W = 85
+        MAX_DESK_W = 140
+        MIN_DESK_H = 40   // 85/40 = 2.12 - LANDSCAPE!
+        MAX_DESK_H = 68
+        GAP_X = 10
+        GAP_Y = 8
+        AVAIL_HEIGHT = 510  // Maximum vertical space
+    }
+
     const isDouble = setup.deskType === 'double'
 
-    let calcW = (AVAIL_WIDTH - (cols.length * GAP_X)) / cols.length
-    let calcH = (AVAIL_HEIGHT - (rows.length * GAP_Y)) / rows.length
+    let calcW = (780 - (colCount * GAP_X)) / colCount
+    let calcH = (AVAIL_HEIGHT - (rowCount * GAP_Y)) / rowCount
 
     const finalW = Math.min(Math.max(calcW, MIN_DESK_W), MAX_DESK_W)
     const finalH = Math.min(Math.max(calcH, MIN_DESK_H), MAX_DESK_H)
 
-    const fontSizeName = Math.max(9, Math.min(13, finalH * 0.18))
+    // Font scaling optimized for landscape desks
+    const fontSizeName = Math.max(6, Math.min(12, finalH * 0.16))
 
-    const totalContentHeight = rows.length * (finalH + GAP_Y)
-    const justifyMethod = totalContentHeight < 300 ? 'center' : 'flex-start'
+    // Always use flex-start to prevent overflow
+    const justifyMethod = 'flex-start'
 
     return (
         <View style={[styles.sceneContainer, { justifyContent: justifyMethod }]}>

@@ -35,10 +35,32 @@ const DraggableStudent = memo(({ seatId, student, isLocked }) => {
     const style = transform ? {
         transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
         zIndex: 999,
-        position: 'relative' // Maintain layout flow
+        position: 'relative'
     } : undefined
 
     if (!student) return null
+
+    // Parse name into first and last
+    const parts = (student.name || '').trim().split(' ')
+    let firstName = student.name
+    let lastName = ''
+
+    if (parts.length > 1) {
+        lastName = parts.pop()
+        firstName = parts.join(' ')
+    }
+
+    // Dynamic font size based on name length (matching PDF logic)
+    const getTextSize = (text) => {
+        const length = text.length
+        if (length <= 8) return 'text-[10px]'
+        if (length <= 12) return 'text-[9px]'
+        if (length <= 16) return 'text-[8px]'
+        return 'text-[7px]'
+    }
+
+    const firstNameClass = getTextSize(firstName)
+    const lastNameClass = getTextSize(lastName)
 
     return (
         <div
@@ -58,9 +80,16 @@ const DraggableStudent = memo(({ seatId, student, isLocked }) => {
             `}>
                 {student.no || '?'}
             </div>
-            <span className="text-[10px] font-bold text-gray-900 line-clamp-2 leading-tight px-1 break-words w-full">
-                {student.name}
-            </span>
+            <div className="flex flex-col items-center w-full px-1">
+                <span className={`${firstNameClass} font-bold text-gray-900 leading-tight break-words w-full`}>
+                    {firstName}
+                </span>
+                {lastName && (
+                    <span className={`${lastNameClass} font-normal text-gray-600 leading-tight break-words w-full mt-0.5`}>
+                        {lastName}
+                    </span>
+                )}
+            </div>
             {student._profile?.specialNeeds && (
                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
             )}
@@ -423,12 +452,15 @@ export default function SeatingGeneratePage() {
             alert('Rapor almak için önce bir plan oluşturmalısınız.')
             return
         }
-        // ... (Report logic maintained)
+
         const btn = document.getElementById('btn-report')
-        if (btn) btn.disabled = true;
+        if (btn) {
+            btn.disabled = true
+            btn.textContent = 'PDF Hazırlanıyor...'
+        }
 
         try {
-            const rules = seatingRepo.loadRules() // Legacy support if needed
+            const rules = seatingRepo.loadRules()
             const meta = classRepo.loadMeta() || {}
             const reportData = generateReportData({
                 stats,
@@ -441,7 +473,7 @@ export default function SeatingGeneratePage() {
                     assignments={assignments}
                     students={students}
                     reportData={reportData}
-                    violations={violations} // Passed updated violations
+                    violations={violations}
                     meta={meta}
                 />
             )
@@ -454,11 +486,30 @@ export default function SeatingGeneratePage() {
             document.body.appendChild(link)
             link.click()
             document.body.removeChild(link)
+            URL.revokeObjectURL(url) // Clean up memory
+
+            // Success feedback
+            setMessage('PDF başarıyla indirildi')
+            setTimeout(() => setMessage(null), 2000)
         } catch (err) {
-            console.error(err)
-            alert('PDF oluşturulurken hata oluştu.')
+            console.error('PDF Generation Error:', err)
+
+            // Specific error messages for better UX
+            let errorMessage = 'PDF oluşturulurken hata oluştu.'
+
+            if (err.message?.includes('font') || err.message?.includes('Font')) {
+                errorMessage = 'Font yükleme hatası. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.'
+            } else if (err.message?.includes('Unknown font format')) {
+                errorMessage = 'Font formatı hatası. Sayfa yenileniyor...'
+                setTimeout(() => window.location.reload(), 2000)
+            }
+
+            alert(errorMessage)
         } finally {
-            if (btn) btn.disabled = false;
+            if (btn) {
+                btn.disabled = false
+                btn.textContent = 'Öneri Belgesi İndir'
+            }
         }
     }
 
@@ -515,7 +566,7 @@ export default function SeatingGeneratePage() {
                             onClick={handleDownloadReport}
                             className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 hover:text-gray-900 hover:bg-gray-50 px-4 py-2 rounded-xl text-sm font-medium transition-colors"
                         >
-                            <FileText className="w-4 h-4" /> Öneri Belgesi
+                            <Download className="w-4 h-4" /> Öneri Belgesi İndir
                         </button>
                         <div className="h-9 w-[1px] bg-gray-200 mx-1"></div>
                         <button onClick={handleReset} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Sıfırla">
