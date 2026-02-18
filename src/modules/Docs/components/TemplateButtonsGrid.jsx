@@ -178,6 +178,7 @@ const TemplateButtonsGrid = ({ templates = [], prefilledInputs = {} }) => {
                 onClose={() => setActiveTemplate(null)}
                 onConfirm={handleInputConfirm}
                 inputs={activeTemplate?.optionalInputs || []}
+                requiredInputs={activeTemplate?.requiredInputs || []}
                 title={activeTemplate?.title}
                 defaults={prefilledInputs}
             />

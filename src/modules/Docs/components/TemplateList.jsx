@@ -198,6 +198,7 @@ const TemplateList = ({ category, prefilledInputs = {} }) => {
                 onClose={() => setActiveTemplate(null)}
                 onConfirm={handleInputConfirm}
                 inputs={activeTemplate?.optionalInputs || []}
+                requiredInputs={activeTemplate?.requiredInputs || []}
                 title={activeTemplate?.title}
                 defaults={prefilledInputs}
             />

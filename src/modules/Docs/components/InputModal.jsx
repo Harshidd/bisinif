@@ -1,28 +1,56 @@
 
 import React, { useState, useEffect } from 'react'
-import { X, FileText, Download } from 'lucide-react'
+import { X, FileText, Download, AlertCircle } from 'lucide-react'
 
-const InputModal = ({ isOpen, onClose, onConfirm, inputs, title, defaults = {} }) => {
+const InputModal = ({ isOpen, onClose, onConfirm, inputs, requiredInputs = [], title, defaults = {} }) => {
     // inputs: ['studentName', 'reason', etc]
     const [formData, setFormData] = useState({})
+    const [errors, setErrors] = useState({})
 
     useEffect(() => {
         if (isOpen) {
             setFormData(prev => ({ ...prev, ...defaults }))
+            setErrors({})
         } else {
             setFormData({}) // Clear on close
+            setErrors({})
         }
     }, [isOpen, defaults])
 
     if (!isOpen) return null
 
+    const validate = () => {
+        const newErrors = {}
+        let isValid = true
+
+        requiredInputs.forEach(field => {
+            const value = formData[field]
+            if (!value || value.trim().length === 0) {
+                newErrors[field] = 'Bu alan zorunludur.'
+                if (field === 'studentName') {
+                    newErrors[field] = 'Öğrenci adı zorunlu.'
+                }
+                isValid = false
+            }
+        })
+
+        setErrors(newErrors)
+        return isValid
+    }
+
     const handleSubmit = (e) => {
         e.preventDefault()
-        onConfirm(formData)
+        if (validate()) {
+            onConfirm(formData)
+        }
     }
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value })
+        // Clear error on type
+        if (errors[e.target.name]) {
+            setErrors(prev => ({ ...prev, [e.target.name]: null }))
+        }
     }
 
     return (
@@ -61,10 +89,13 @@ const InputModal = ({ isOpen, onClose, onConfirm, inputs, title, defaults = {} }
                                 placeholder = 'Örn: Ali Veli'
                             }
 
+                            const isRequired = requiredInputs.includes(field)
+                            const hasError = !!errors[field]
+
                             return (
                                 <div key={field}>
                                     <label className="block text-xs font-medium text-gray-700 mb-1">
-                                        {label}
+                                        {label} {isRequired && <span className="text-red-500">*</span>}
                                     </label>
                                     <input
                                         type="text"
@@ -73,8 +104,21 @@ const InputModal = ({ isOpen, onClose, onConfirm, inputs, title, defaults = {} }
                                         onChange={handleChange}
                                         placeholder={placeholder}
                                         autoFocus={field === inputs[0]}
-                                        className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all"
+                                        className={`
+                                            w-full px-3 py-2 bg-white border rounded-xl text-sm text-gray-900 
+                                            focus:outline-none focus:ring-2 transition-all
+                                            ${hasError
+                                                ? 'border-red-300 focus:ring-red-100 focus:border-red-400'
+                                                : 'border-gray-200 focus:ring-blue-100 focus:border-blue-300'
+                                            }
+                                        `}
                                     />
+                                    {hasError && (
+                                        <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
+                                            <AlertCircle className="w-3 h-3" />
+                                            {errors[field]}
+                                        </p>
+                                    )}
                                 </div>
                             )
                         })}

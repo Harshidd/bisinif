@@ -4,6 +4,7 @@
 // REFACTORED FOR SSOT FILENAMES
 
 import { BASE_V1 } from './files/baseTemplate'
+import { DISCIPLINE_V1 } from './files/disciplineTemplate'
 
 export const DOCUMENT_CATEGORIES = {
     DISCIPLINE: 'discipline',
@@ -23,9 +24,10 @@ export const TEMPLATES = [
         title: 'Öğrenci Olay Tutanağı (Veli Çağrı)',
         description: 'Veli görüşmesi ve olay detaylarını kayıt altına almak için standart tutanak.',
         filePattern: 'Ogrenci_Olay_Tutanagi_{className}_{date}',
-        sourceBase64: BASE_V1,
+        sourceBase64: DISCIPLINE_V1,
         enabledFormats: { docx: true, pdf: false },
         requiredFields: ['schoolName', 'className', 'teacherName'],
+        requiredInputs: ['studentName'],
         optionalInputs: ['studentName']
     },
     {
