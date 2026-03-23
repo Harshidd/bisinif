@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { classRepo } from '../repo/classRepo'
 import {
     Search, Save, X, AlertTriangle, UserPlus,
-    MessageCircle, Zap, ShieldAlert, CheckCircle2, Loader2
+    MessageCircle, Zap, ShieldAlert, CheckCircle2, Loader2, LayoutGrid, List
 } from 'lucide-react'
+import StudentTableViewSkeleton from '../components/StudentTableViewSkeleton'
 
 // ... RatingControl Component remains same
 const RatingControl = ({ label, value, max = 5, onChange, icon: Icon, colorClass }) => {
@@ -291,6 +292,7 @@ export default function StudentList() {
     const [conflicts, setConflicts] = useState([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState('')
+    const [viewMode, setViewMode] = useState('card') // 'card' or 'table'
 
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [selectedStudentId, setSelectedStudentId] = useState(null)
@@ -368,25 +370,47 @@ export default function StudentList() {
                         onChange={(e) => setSearch(e.target.value)}
                     />
                 </div>
-                <div className="text-sm text-gray-500 font-medium">
-                    Toplam: <span className="text-gray-900 font-bold">{filteredStudents.length}</span> öğrenci
+                <div className="flex items-center gap-3 w-full md:w-auto mt-3 md:mt-0">
+                    <div className="flex bg-gray-100 p-1 rounded-lg">
+                        <button
+                            onClick={() => setViewMode('card')}
+                            className={`p-1.5 rounded-md transition-all ${viewMode === 'card' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                            title="Kart Görünümü"
+                        >
+                            <LayoutGrid className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => setViewMode('table')}
+                            className={`p-1.5 rounded-md transition-all ${viewMode === 'table' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                            title="Tablo Görünümü (Beta)"
+                        >
+                            <List className="w-4 h-4" />
+                        </button>
+                    </div>
+                    <div className="text-sm text-gray-500 font-medium whitespace-nowrap">
+                        Toplam: <span className="text-gray-900 font-bold">{filteredStudents.length}</span> öğrenci
+                    </div>
                 </div>
             </div>
 
-            {/* Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredStudents.map(student => (
-                    <StudentCard
-                        key={student.id}
-                        student={student}
-                        conflicts={conflicts.filter(c => c.studentIdA === student.id || c.studentIdB === student.id)}
-                        allStudents={students}
-                        onSave={handleSaveProfile}
-                        onAddConflict={handleOpenConflictModal}
-                        onRemoveConflict={handleRemoveConflict}
-                    />
-                ))}
-            </div>
+            {/* View Switching */}
+            {viewMode === 'card' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {filteredStudents.map(student => (
+                        <StudentCard
+                            key={student.id}
+                            student={student}
+                            conflicts={conflicts.filter(c => c.studentIdA === student.id || c.studentIdB === student.id)}
+                            allStudents={students}
+                            onSave={handleSaveProfile}
+                            onAddConflict={handleOpenConflictModal}
+                            onRemoveConflict={handleRemoveConflict}
+                        />
+                    ))}
+                </div>
+            ) : (
+                <StudentTableViewSkeleton students={filteredStudents} />
+            )}
 
             {/* Modals */}
             <ConflictModal

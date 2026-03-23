@@ -7,11 +7,13 @@ import DisciplineDocsPage from './pages/DisciplineDocsPage'
 import CommitteeDocsPage from './pages/CommitteeDocsPage'
 import PlansDocsPage from './pages/PlansDocsPage'
 import HomeworkDocsPage from './pages/HomeworkDocsPage'
+import InstitutionBanner from '../../components/InstitutionBanner'
 
 export default function Docs() {
     return (
         <div className="min-h-screen bg-[#F5F5F7] p-6 font-sans">
             <DocsHeader />
+            <InstitutionBanner />
             <main className="max-w-6xl mx-auto">
                 <Routes>
                     <Route path="/" element={<DocsHubPage />} />

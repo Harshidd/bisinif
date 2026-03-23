@@ -58,7 +58,6 @@ const SetupAndGradesStep = ({
   onBack,
   onNext,
 }) => {
-  const [activeTab, setActiveTab] = useState('setup')
   const [outcomeTexts, setOutcomeTexts] = useState(config.outcomes || [])
   const [outcomeCount, setOutcomeCount] = useState((config.outcomes || []).length)
   const [questionCount, setQuestionCount] = useState(questions.length || 0)
@@ -83,13 +82,14 @@ const SetupAndGradesStep = ({
     }
   }, [questions.length])
 
-  // Normalize questions when count or outcomes change
+  // Normalize questions when count or outcomes or questions change to prevent stale closures overwriting mappings
   useEffect(() => {
     const normalized = normalizeQuestions(questionCount, questions, outcomeTexts)
     if (!areQuestionsEqual(normalized, questions)) {
       onQuestionsChange(normalized)
     }
-  }, [questionCount, outcomeTexts])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questionCount, outcomeTexts, questions])
 
   // Grade reset warning when question count changes
   useEffect(() => {
@@ -129,18 +129,16 @@ const SetupAndGradesStep = ({
   }
 
   const handleQuestionScoreChange = (qNo, value) => {
-    const next = [...questions]
-    const question = next.find((item) => item.qNo === qNo)
-    if (!question) return
-    question.maxScore = Math.max(0, Math.floor(toNumber(value)))
+    const next = questions.map((q) => 
+      q.qNo === qNo ? { ...q, maxScore: Math.max(0, Math.floor(Number(value) || 0)) } : q
+    )
     onQuestionsChange(next)
   }
 
   const handleOutcomeChange = (qNo, selectedValue) => {
-    const next = [...questions]
-    const question = next.find((item) => item.qNo === qNo)
-    if (!question) return
-    question.outcomeId = selectedValue === '' ? null : selectedValue
+    const next = questions.map((q) => 
+      q.qNo === qNo ? { ...q, outcomeId: selectedValue === '' ? null : selectedValue } : q
+    )
     onQuestionsChange(next)
   }
 
@@ -178,414 +176,241 @@ const SetupAndGradesStep = ({
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      {/* Top Bar: Back Button */}
-      <div className="flex justify-end">
-        <Button onClick={onBack} variant="outline">
-          Geri
-        </Button>
-      </div>
-
-      {/* Header Grid: Title/Tabs + Student Import Toolbar (only on grades tab) */}
-      {activeTab === 'grades' ? (
-        <Card className="shadow-apple-lg border border-gray-100 bg-white rounded-2xl p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_680px] gap-6 items-start">
-            {/* Left: Title, Description, Tabs */}
-            <div className="space-y-4">
-              <div>
-                <h1 className="text-2xl font-semibold text-gray-900">Sınav Kurulumu & Not Girişi</h1>
-                <p className="text-sm text-gray-500">Sınavı kurun, öğrencileri yükleyin ve notları girin.</p>
-              </div>
-              <div className="inline-flex items-center gap-1 bg-gray-100 p-1 rounded-full">
-                <button
-                  onClick={() => setActiveTab('setup')}
-                  className={`px-4 py-2 text-sm rounded-full transition-all ${activeTab === 'setup'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                >
-                  Sınav Kurulumu
-                </button>
-                <button
-                  onClick={() => setActiveTab('grades')}
-                  className={`px-4 py-2 text-sm rounded-full transition-all ${activeTab === 'grades'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                >
-                  Öğrenci & Notlar
-                </button>
-              </div>
+      
+      {/* UPPER PANEL: E-Okul Tarzı Sınav Kurulum Paneli */}
+      <div className="border border-slate-200 bg-white shadow-sm rounded-xl overflow-hidden">
+        <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-2">
+          <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+            <span className="w-2 h-6 bg-blue-600 rounded-sm"></span>
+            Sınav Kurulumu & Parametreler
+          </h2>
+          <div className="text-xs text-slate-500 font-medium px-3 py-1 bg-white border border-slate-200 rounded-full shadow-sm">
+            {config.courseName || 'Ders Seçilmedi'} • {config.examName || 'Sınav'} • {config.examDate ? new Date(config.examDate).toLocaleDateString('tr-TR') : ''}
+          </div>
+        </div>
+        
+        <div className="p-4 grid grid-cols-1 md:grid-cols-4 gap-6 bg-white">
+          {/* Kolon 1: Soru ve Geçme Puanı */}
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="questionCount" className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Toplam Soru (N)</Label>
+              <Input
+                id="questionCount"
+                type="number"
+                min="0"
+                value={questionCount}
+                onChange={(e) => handleQuestionCountChange(e.target.value)}
+                className="h-8 text-sm focus:ring-blue-500"
+              />
             </div>
-
-            {/* Right: Student Import Toolbar */}
-            <div className="h-full">
-              <StudentImporter
-                onImport={onStudentsChange} // Pass raw update to Exam State
-                existingStudents={students}
-                compact={true}
-                target="exam" // Updates Roster automatically too
+            <div className="space-y-1.5">
+              <Label htmlFor="generalPassingScore" className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Genel Geçme Puanı</Label>
+              <Input
+                id="generalPassingScore"
+                type="number"
+                min="0"
+                max="100"
+                value={config.generalPassingScore ?? 50}
+                onChange={(e) => onConfigChange({ generalPassingScore: parseFloat(e.target.value) || 0 })}
+                className="h-8 text-sm focus:ring-blue-500"
               />
             </div>
           </div>
-        </Card>
-      ) : (
-        /* Setup tab: Simple header */
-        <Card className="shadow-apple-lg border border-gray-100 bg-white rounded-2xl p-6">
+          
+          {/* Kolon 2: Puanlama & Baraj */}
           <div className="space-y-4">
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Sınav Kurulumu & Not Girişi</h1>
-              <p className="text-sm text-gray-500">Sınavı kurun, öğrencileri yükleyin ve notları girin.</p>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Puanlama Modu</Label>
+              <div className="flex items-center gap-1 border border-slate-200 p-0.5 rounded-lg bg-slate-50">
+                <button
+                  type="button"
+                  onClick={() => setScoringMode('auto')}
+                  className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-all ${scoringMode === 'auto' ? 'bg-white shadow-sm text-blue-700 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Otomatik
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScoringMode('manual')}
+                  className={`flex-1 text-xs py-1.5 rounded-md font-medium transition-all ${scoringMode === 'manual' ? 'bg-white shadow-sm text-blue-700 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Manuel
+                </button>
+              </div>
             </div>
-            <div className="inline-flex items-center gap-1 bg-gray-100 p-1 rounded-full">
-              <button
-                onClick={() => setActiveTab('setup')}
-                className={`px-4 py-2 text-sm rounded-full transition-all ${activeTab === 'setup'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-                  }`}
-              >
-                Sınav Kurulumu
-              </button>
-              <button
-                onClick={() => setActiveTab('grades')}
-                className={`px-4 py-2 text-sm rounded-full transition-all ${activeTab === 'grades'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-                  }`}
-              >
-                Öğrenci & Notlar
-              </button>
+            <div className="space-y-1.5">
+              <Label htmlFor="outcomeMasteryThreshold" className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Kazanım Barajı (%)</Label>
+              <Input
+                id="outcomeMasteryThreshold"
+                type="number"
+                min="0"
+                max="100"
+                value={config.outcomeMasteryThreshold ?? 50}
+                onChange={(e) => onConfigChange({ outcomeMasteryThreshold: parseFloat(e.target.value) || 0 })}
+                className="h-8 text-sm focus:ring-blue-500"
+              />
             </div>
           </div>
-        </Card>
-      )}
 
-      {activeTab === 'setup' && (
-        <div className="space-y-6">
-          {/* Policy Settings at Top */}
-          <Card className="shadow-apple-lg">
-            <CardContent className="pt-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="generalPassingScore" className="text-gray-600">Genel Geçme Puanı</Label>
-                  <Input
-                    id="generalPassingScore"
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={config.generalPassingScore ?? 50}
-                    onChange={(e) => onConfigChange({ generalPassingScore: parseFloat(e.target.value) || 0 })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="outcomeMasteryThreshold" className="text-gray-600">Kazanım Ustalık Barajı (%)</Label>
-                  <Input
-                    id="outcomeMasteryThreshold"
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={config.outcomeMasteryThreshold ?? 50}
-                    onChange={(e) => onConfigChange({ outcomeMasteryThreshold: parseFloat(e.target.value) || 0 })}
-                  />
-                </div>
+          {/* Kolon 3 & 4: Kazanım Listesi */}
+          <div className="md:col-span-2 space-y-2 border-l border-slate-100 pl-4">
+            <div className="flex items-center justify-between mb-2">
+              <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Kazanım Listesi</Label>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-slate-400">Adet:</span>
+                <Input
+                  type="number"
+                  min="0"
+                  value={outcomeCount}
+                  onChange={(e) => handleOutcomeCountChange(e.target.value)}
+                  className="h-6 w-16 text-xs px-2"
+                />
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Main Setup Area: Left Panel + Right Table */}
-          <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
-            {/* Left Panel: Kazanımlar (Desktop) */}
-            <div className="hidden lg:block">
-              <Card className="shadow-apple-lg h-full">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg">Kazanımlar</CardTitle>
-                  <CardDescription className="text-xs">Kazanım listesi tanımlayın</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="outcomeCount" className="text-sm text-gray-600">Kazanım Sayısı (K)</Label>
-                    <Input
-                      id="outcomeCount"
-                      type="number"
-                      min="0"
-                      value={outcomeCount}
-                      onChange={(e) => handleOutcomeCountChange(e.target.value)}
-                      className="text-sm"
-                    />
-                  </div>
-                  {outcomeCount > 0 && (
-                    <div className="space-y-2">
-                      {Array.from({ length: outcomeCount }).map((_, index) => (
-                        <div key={index} className="space-y-1">
-                          <Label className="text-xs text-gray-500">K{index + 1}</Label>
-                          <Input
-                            value={outcomeTexts[index] || ''}
-                            onChange={(e) => handleOutcomeTextChange(index, e.target.value)}
-                            placeholder={`Kazanım ${index + 1}`}
-                            className="text-sm"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
             </div>
+            
+            <div className="max-h-[110px] overflow-y-auto space-y-1.5 pr-2 scrollbar-thin scrollbar-thumb-slate-200">
+              {outcomeCount === 0 && (
+                <div className="text-xs text-slate-400 italic">Kazanım tanımlanmadı. Sadece genel not verilecekse şart değildir.</div>
+              )}
+              {Array.from({ length: outcomeCount }).map((_, index) => (
+                <div key={index} className="flex gap-2">
+                  <div className="w-8 h-7 shrink-0 bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500 rounded border border-slate-200">
+                    K{index + 1}
+                  </div>
+                  <Input
+                    value={outcomeTexts[index] || ''}
+                    onChange={(e) => handleOutcomeTextChange(index, e.target.value)}
+                    placeholder={`Kazanım ${index + 1} açıklamasını girin...`}
+                    className="h-7 text-xs flex-1"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
 
-            {/* Mobile: Kazanımlar Accordion */}
-            <div className="lg:hidden">
-              <Card className="shadow-apple-lg">
-                <CardHeader className="pb-3">
-                  <button
-                    onClick={() => setShowOutcomesPanel(!showOutcomesPanel)}
-                    className="flex items-center justify-between w-full text-left"
-                  >
-                    <div>
-                      <CardTitle className="text-lg">Kazanımlar</CardTitle>
-                      <CardDescription className="text-xs">Kazanım listesi tanımlayın</CardDescription>
-                    </div>
-                    <span className="text-gray-400">{showOutcomesPanel ? '▼' : '▶'}</span>
-                  </button>
-                </CardHeader>
-                {showOutcomesPanel && (
-                  <CardContent className="space-y-4 pt-0">
-                    <div className="space-y-2">
-                      <Label htmlFor="outcomeCountMobile" className="text-sm text-gray-600">Kazanım Sayısı (K)</Label>
+        {/* Soru-Kazanım Eşleştirme Alt Paneli */}
+        {questionCount > 0 && (
+          <div className="border-t border-slate-100 bg-slate-50/50 p-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-3 gap-2">
+              <div>
+                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Soru - Kazanım Dağılımı</h3>
+                <p className="text-[10px] text-slate-500 mt-0.5">Önce kazanımları tanımlayınız, ardından her soruyu ilgili kazanımla aşağıdaki listeden eşleştiriniz.</p>
+              </div>
+              {scoringMode === 'auto' && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAutoDistribute}
+                  className="h-7 text-[10px] uppercase font-bold text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100"
+                >
+                  Puanları Eşit Dağıt (100)
+                </Button>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 bg-white border border-slate-200 rounded-lg max-h-[280px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 p-2">
+              {questions.map((question) => (
+                <div key={question.qNo} className="flex flex-row items-center justify-between gap-2 p-1.5 border border-slate-100 rounded bg-slate-50 hover:bg-slate-100/70 transition-colors">
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-xs font-bold text-slate-600 w-11">Soru {question.qNo}</span>
+                    {scoringMode === 'auto' ? (
+                      <span className="text-[11px] font-bold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded shadow-sm min-w-[32px] text-center">{Math.round(question.maxScore ?? 0)}p</span>
+                    ) : (
                       <Input
-                        id="outcomeCountMobile"
                         type="number"
                         min="0"
-                        value={outcomeCount}
-                        onChange={(e) => handleOutcomeCountChange(e.target.value)}
-                        className="text-sm"
+                        step="1"
+                        value={question.maxScore ?? 0}
+                        onChange={(e) => handleQuestionScoreChange(question.qNo, e.target.value)}
+                        className="w-12 h-6 text-xs text-center px-1 border-slate-200 focus:border-blue-500 font-bold"
                       />
-                    </div>
-                    {outcomeCount > 0 && (
-                      <div className="space-y-2">
-                        {Array.from({ length: outcomeCount }).map((_, index) => (
-                          <div key={index} className="space-y-1">
-                            <Label className="text-xs text-gray-500">K{index + 1}</Label>
-                            <Input
-                              value={outcomeTexts[index] || ''}
-                              onChange={(e) => handleOutcomeTextChange(index, e.target.value)}
-                              placeholder={`Kazanım ${index + 1}`}
-                              className="text-sm"
-                            />
-                          </div>
-                        ))}
-                      </div>
                     )}
-                  </CardContent>
-                )}
-              </Card>
+                  </div>
+                  <select
+                    value={question.outcomeId ?? ''}
+                    onChange={(e) => handleOutcomeChange(question.qNo, e.target.value)}
+                    className="flex-1 min-w-[100px] h-7 py-0 px-2 text-[10px] border border-slate-200 rounded text-slate-700 focus:outline-none focus:border-blue-500 bg-white"
+                  >
+                    <option value="" className="text-slate-400">Kazanım Seç...</option>
+                    {outcomeTexts.map((outcome, index) => (
+                      <option key={index} value={String(index)}>
+                        K{index + 1}: {(outcome || '').substring(0, 30)}...
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
             </div>
-
-            {/* Right Panel: Question Setup */}
-            <Card className="shadow-apple-lg">
-              <CardHeader>
-                <CardTitle>Soru Kurulumu</CardTitle>
-                <CardDescription>Soru sayısı, puanlama ve kazanım eşleştirmesi</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Question Settings Row */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                  <div className="space-y-2">
-                    <Label htmlFor="questionCount" className="text-gray-600">Toplam Soru (N)</Label>
-                    <Input
-                      id="questionCount"
-                      type="number"
-                      min="0"
-                      value={questionCount}
-                      onChange={(e) => handleQuestionCountChange(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-gray-600">Puanlama Modu</Label>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setScoringMode('auto')}
-                        className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-all ${scoringMode === 'auto'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-white text-gray-600 border border-gray-200'
-                          }`}
-                      >
-                        Otomatik
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setScoringMode('manual')}
-                        className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-all ${scoringMode === 'manual'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-white text-gray-600 border border-gray-200'
-                          }`}
-                      >
-                        Manuel
-                      </button>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-gray-600">Toplam Puan</Label>
-                    <div className="h-10 flex items-center justify-between px-3 rounded-lg bg-gray-50 text-gray-700 font-semibold">
-                      <span>100</span>
-                      {scoringMode === 'auto' && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleAutoDistribute}
-                          disabled={questionCount <= 0}
-                          className="h-7 text-xs"
-                        >
-                          Dağıt (100/N)
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {showGradeResetWarning && (
-                  <Alert className="bg-amber-50 border-amber-200">
-                    <AlertTriangle className="h-4 w-4 text-amber-600" />
-                    <AlertDescription className="text-amber-700 text-sm flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                      <span>Soru sayısı değişti. Mevcut notlar yeni düzene uymayabilir.</span>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => {
-                          onGradesChange({})
-                          setShowGradeResetWarning(false)
-                        }}
-                      >
-                        Notları Sıfırla
-                      </Button>
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {/* Question-Outcome Table */}
-                {questionCount > 0 && (
-                  <div className="space-y-3">
-                    <div>
-                      <h3 className="text-sm font-semibold text-gray-900">Soru–Kazanım Eşleştirme</h3>
-                      <p className="text-xs text-gray-500">Her soru için puan ve kazanım seçin.</p>
-                    </div>
-
-                    <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-                      <table className="w-full">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase w-16">Soru</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase w-24">Puan</th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Kazanım</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {questions.map((question) => (
-                            <tr key={question.qNo} className="hover:bg-gray-50">
-                              <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                                Q{question.qNo}
-                              </td>
-                              <td className="px-4 py-3">
-                                {scoringMode === 'auto' ? (
-                                  <div className="text-sm text-gray-700 font-medium">
-                                    {Math.round(question.maxScore ?? 0)}
-                                  </div>
-                                ) : (
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    step="1"
-                                    value={question.maxScore ?? 0}
-                                    onChange={(e) => handleQuestionScoreChange(question.qNo, e.target.value)}
-                                    className="w-20 text-right text-sm"
-                                  />
-                                )}
-                              </td>
-                              <td className="px-4 py-3">
-                                <select
-                                  value={question.outcomeId ?? ''}
-                                  onChange={(e) => handleOutcomeChange(question.qNo, e.target.value)}
-                                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                >
-                                  <option value="">Seçilmedi</option>
-                                  {outcomeTexts.map((outcome, index) => (
-                                    <option key={index} value={String(index)}>
-                                      {outcome || `Kazanım ${index + 1}`}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            
+            {showGradeResetWarning && (
+              <Alert className="mt-3 bg-red-50 border-red-200 py-2">
+                <AlertTriangle className="h-4 w-4 text-red-600" />
+                <AlertDescription className="text-red-700 text-xs flex flex-col md:flex-row md:items-center justify-between gap-2 ml-2">
+                  <span>Soru sayısı değişti. Mevcut öğrenci notları yeni düzene uymayabilir.</span>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => {
+                      onGradesChange({})
+                      setShowGradeResetWarning(false)
+                    }}
+                    className="h-7 text-[10px] px-2"
+                  >
+                    Tüm Notları Sıfırla
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {activeTab === 'grades' && (
-        <div className="space-y-4 mt-2">
-          {/* Note: ExcelUploader is now in the header row above */}
-
-          {/* Full-Width Grading Table or Empty State */}
-          {students.length === 0 ? (
-            <Card className="shadow-apple-lg">
-              <CardContent className="py-12 text-center">
-                <div className="space-y-3">
-                  <div className="text-gray-400">
-                    <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900">Henüz öğrenci yok</h3>
-                  <p className="text-sm text-gray-500">Yukarıdaki araç çubuğundan öğrenci listesi yükleyin</p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <GradingTable
-              config={config}
-              questions={questions}
-              students={students}
-              grades={grades}
-              onGradesChange={onGradesChange}
-              onStudentUpdate={(studentId, patch) => {
-                const nextStudents = students.map(s =>
-                  s.id === studentId ? { ...s, ...patch } : s
-                )
-                onStudentsChange(nextStudents)
-              }}
-              onDeleteStudent={(studentId) => {
-                if (!window.confirm('Bu öğrenciyi silmek istediğinizden emin misiniz?')) return
-                const nextStudents = students.filter(s => s.id !== studentId)
-                onStudentsChange(nextStudents)
-                // grades'ten de sil
-                const nextGrades = { ...grades }
-                delete nextGrades[studentId]
-                onGradesChange(nextGrades)
-              }}
-              onAddStudent={() => {
-                const newStudent = {
-                  id: Date.now(),
-                  siraNo: students.length + 1,
-                  no: '',
-                  studentNumber: '',
-                  name: ''
-                }
-                onStudentsChange([...students, newStudent])
-              }}
-              showNavigation={false}
+      {/* LOWER PANEL: Öğrenci Not Girişi */}
+      <div className="border border-slate-200 bg-white shadow-sm rounded-xl overflow-hidden mt-6">
+        <GradingTable
+          config={config}
+          questions={questions}
+          students={students}
+          grades={grades}
+          onGradesChange={onGradesChange}
+          onStudentUpdate={(studentId, patch) => {
+            const nextStudents = students.map(s =>
+              s.id === studentId ? { ...s, ...patch } : s
+            )
+            onStudentsChange(nextStudents)
+          }}
+          onDeleteStudent={(studentId) => {
+            if (!window.confirm('Öğrenci listeden silinecek, emin misiniz?')) return
+            const nextStudents = students.filter(s => String(s.id) !== String(studentId))
+            onStudentsChange(nextStudents)
+            const nextGrades = { ...grades }
+            delete nextGrades[studentId]
+            onGradesChange(nextGrades)
+          }}
+          onAddStudent={() => {
+            const newStudent = {
+              id: Date.now(),
+              siraNo: students.length + 1,
+              no: '',
+              studentNumber: '',
+              name: ''
+            }
+            onStudentsChange([...students, newStudent])
+          }}
+          showNavigation={false}
+          importerComponent={
+            <StudentImporter
+              onImport={onStudentsChange}
+              existingStudents={students}
+              compact={true}
+              target="exam"
             />
-          )}
-        </div>
-      )}
+          }
+        />
+      </div>
 
       <div className="flex items-center justify-between">
         <div className="text-sm text-gray-500">

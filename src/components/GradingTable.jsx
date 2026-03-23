@@ -1,9 +1,9 @@
-﻿import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/Card'
 import { Input } from './ui/Input'
 import { Button } from './ui/Button'
 import { Alert, AlertDescription } from './ui/Alert'
-import { AlertTriangle, AlertCircle, Zap, Trash2, Plus } from 'lucide-react'
+import { AlertTriangle, AlertCircle, Zap, Trash2, Plus, LayoutGrid, List } from 'lucide-react'
 
 // Helper for integer-only distribution logic
 // Strictly follows integer arithmetic to guarantee totals
@@ -55,12 +55,12 @@ const distributeIntegerTotal = (total, maxScores) => {
   return scores
 }
 
-const GradingTable = ({ config, questions = [], students, grades: existingGrades, onGradesChange, onStudentUpdate, onDeleteStudent, onAddStudent, onNext, onBack, showNavigation = true }) => {
+const GradingTable = ({ config, questions = [], students, grades: existingGrades, onGradesChange, onStudentUpdate, onDeleteStudent, onAddStudent, onNext, onBack, showNavigation = true, importerComponent }) => {
   const [grades, setGrades] = useState({})
   const [warnings, setWarnings] = useState({})
   const [totalInputWarnings, setTotalInputWarnings] = useState({})
   const [totalInputValues, setTotalInputValues] = useState({})
-  const [gradingMode, setGradingMode] = useState('fast')
+  const [viewMode, setViewMode] = useState('table') // 'table' or 'card'
 
   const maxTotalScore = questions.reduce((sum, question) => sum + (Number(question.maxScore) || 0), 0) || 0
   const generalPassingScore = config.generalPassingScore ?? 50
@@ -296,73 +296,83 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
 
   return (
     <div className="max-w-full mx-auto space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <CardTitle>Not Girişi</CardTitle>
-              <CardDescription>
-                Soru puanlarını tek tek girin veya toplam puandan otomatik dağıtın
-              </CardDescription>
-            </div>
-            <Button
-              onClick={handleFillAllWithMaxScore}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+      {hasOverflow() && (
+        <Alert variant="destructive" className="mb-4 animate-pulse rounded-none border-x-0 border-t-0">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="font-bold">
+            ⛔ HATA: Bazı öğrencilerin toplam puanı {maxTotalScore}'ü aşıyor! Lütfen tabloyu kontrol edin.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Unified Grading Control Ribbon */}
+      <div className="bg-slate-50 border-b border-slate-200 px-4 py-2 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
+        {/* Left side: View Mode & Grading Mode */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex bg-white border border-slate-200 p-0.5 rounded-lg">
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              className={`p-1.5 rounded-md transition-all ${viewMode === 'table' ? 'bg-slate-100 shadow-sm text-blue-700' : 'text-slate-400 hover:text-slate-600'}`}
+              title="Tablo Görünümü"
             >
-              <Zap className="w-4 h-4 mr-2" />
-              Tüm Öğrencilere Tam Puan Ver
+              <List className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('card')}
+              className={`p-1.5 rounded-md transition-all ${viewMode === 'card' ? 'bg-slate-100 shadow-sm text-blue-700' : 'text-slate-400 hover:text-slate-600'}`}
+              title="Mobil/Kart Görünümü"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        
+        {/* Right side: Importer, Stats & Actions */}
+        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-between lg:justify-end">
+          {importerComponent && (
+             <div className="shrink-0">
+               {importerComponent}
+             </div>
+          )}
+          
+          <div className="flex items-center gap-3">
+            <div className="hidden lg:block w-px h-5 bg-slate-300"></div>
+            <div className="flex items-center gap-3 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm text-xs text-slate-600 shrink-0">
+              <span>Ortalama: <strong className="text-slate-900">{Math.round(classAverage)}/{maxTotalScore}</strong></span>
+              <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+              <span>Kayıt: <strong className="text-slate-900">{students.length}</strong></span>
+            </div>
+            
+            <Button 
+              onClick={handleFillAllWithMaxScore} 
+              variant="outline" 
+              size="sm" 
+              className="h-8 text-xs font-semibold border-emerald-200 text-emerald-700 hover:bg-emerald-50 bg-white shadow-sm shrink-0"
+            >
+              <Zap className="w-3.5 h-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Tümüne Tam Puan</span>
+              <span className="sm:hidden">Tam Puan</span>
             </Button>
           </div>
-        </CardHeader>
-        <CardContent>
-          {hasOverflow() && (
-            <Alert variant="destructive" className="mb-4 animate-pulse">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription className="font-bold">
-                ⛔ HATA: Bazı öğrencilerin toplam puanı {maxTotalScore}'ü aşıyor!
-              </AlertDescription>
-            </Alert>
-          )}
+        </div>
+      </div>
 
-          <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setGradingMode('fast')}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${gradingMode === 'fast'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                  }`}
-              >
-                Toplam Gir (Dağıt)
-              </button>
-              <button
-                type="button"
-                onClick={() => setGradingMode('detailed')}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${gradingMode === 'detailed'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                  }`}
-              >
-                Soru Soru Gir
-              </button>
-            </div>
-
-            <div className="flex items-center gap-4 text-xs font-medium py-2 px-3 bg-slate-50 border border-slate-200 rounded-lg whitespace-nowrap shadow-sm">
-              <div className="flex items-center gap-2">
-                <span className="text-slate-500">Sınıf Ortalaması:</span>
-                <span className="text-slate-900 font-bold">{Math.round(classAverage)} / {maxTotalScore}</span>
-              </div>
-              <div className="w-px h-3 bg-slate-300 mx-1 hidden sm:block"></div>
-              <div className="flex items-center gap-2">
-                <span className="text-slate-500">Öğrenci:</span>
-                <span className="text-slate-900 font-bold">{students.length}</span>
-              </div>
-            </div>
+      {students.length === 0 ? (
+        <div className="py-16 text-center bg-white border-t border-slate-100">
+          <div className="text-slate-300 mb-3">
+            <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
           </div>
-
-          {/* Desktop Table View - Comapct & Sticky */}
-          <div className="hidden lg:block w-full">
+          <h3 className="text-sm font-semibold text-slate-600">Sınıf Listesi Boş</h3>
+          <p className="text-xs text-slate-400 mt-1">Lütfen üstteki araçtan listenizi yükleyiniz veya tekil öğrenci ekleyiniz.</p>
+        </div>
+      ) : (
+        <>
+          {/* Desktop/Responsive Table View - Compact & Sticky */}
+          <div className={viewMode === 'table' ? 'block w-full' : 'hidden'}>
             {/* 
                 Yatay ve Dikey Scroll konteyneri.
                 max-h-[75vh] ile ekranın taşmasını engeller, scrollbar her zaman görünür olur.
@@ -407,23 +417,23 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
                     const displayTotal = getTotalDisplayValue(student.id)
 
                     return (
-                      <tr key={student.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="sticky left-0 z-20 bg-white px-2 py-2 text-xs text-gray-600 text-center w-12 min-w-[3rem] max-w-[3rem] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">{student.siraNo}</td>
-                        <td className="sticky z-20 bg-white px-1 py-1 w-[5rem] min-w-[5rem] max-w-[5rem] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" style={{ left: '3rem' }}>
+                      <tr key={student.id} className="hover:bg-blue-50/50 transition-colors border-b border-slate-100 last:border-0 group">
+                        <td className="sticky left-0 z-20 bg-white group-hover:bg-blue-50/50 px-1 py-1 text-[11px] font-semibold text-slate-400 text-center w-12 min-w-[3rem] max-w-[3rem] shadow-[1px_0_4px_-1px_rgba(0,0,0,0.05)] border-r border-slate-100">{student.siraNo}</td>
+                        <td className="sticky z-20 bg-white group-hover:bg-blue-50/50 px-1 py-1 w-[5rem] min-w-[5rem] max-w-[5rem] shadow-[1px_0_4px_-1px_rgba(0,0,0,0.05)]" style={{ left: '3rem' }}>
                           <Input
                             type="text"
                             value={student.studentNumber || student.no || ''}
                             onChange={(e) => onStudentUpdate?.(student.id, { no: e.target.value, studentNumber: e.target.value })}
-                            className="text-xs h-7 px-1 w-full text-center border-transparent hover:border-gray-300 focus:border-blue-500"
+                            className="text-xs h-6 px-1 w-full text-center border-transparent hover:border-slate-300 focus:border-blue-500 bg-transparent"
                             placeholder="No"
                           />
                         </td>
-                        <td className="sticky z-20 bg-white px-1 py-1 w-44 min-w-[11rem] max-w-[11rem] border-r border-gray-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" style={{ left: '8rem' }}>
+                        <td className="sticky z-20 bg-white group-hover:bg-blue-50/50 px-1 py-1 w-44 min-w-[11rem] max-w-[11rem] border-r border-slate-200 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" style={{ left: '8rem' }}>
                           <Input
                             type="text"
                             value={student.name || ''}
                             onChange={(e) => onStudentUpdate?.(student.id, { name: e.target.value })}
-                            className="text-xs h-7 px-2 w-full border-transparent hover:border-gray-300 focus:border-blue-500"
+                            className="text-xs h-6 px-2 w-full font-medium border-transparent hover:border-slate-300 focus:border-blue-500 bg-transparent text-slate-800"
                             placeholder="Ad Soyad"
                           />
                         </td>
@@ -434,54 +444,45 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
 
                           return (
                             <td key={question.qNo} className="px-1 py-1 text-center">
-                              <Input
-                                type="number"
-                                min="0"
-                                max={maxScoreForOutcome}
-                                step="1"
-                                name={`q-${student.id}-${question.qNo}`}
-                                aria-label={`Soru ${question.qNo} notu, ${student.name}`}
-                                value={grades[student.id]?.[question.qNo] ?? ''}
-                                onChange={(e) =>
-                                  handleGradeChange(student.id, question.qNo, maxScoreForOutcome, e.target.value)
-                                }
-                                disabled={gradingMode === 'fast'}
-                                className={`text-center text-xs py-1 w-12 min-w-[3rem] mx-auto h-7 px-0 ${hasWarning ? 'border-red-500 bg-red-50' : gradingMode === 'fast' ? 'bg-gray-100 text-gray-500' : 'border-gray-200'}`}
-                                title={`Max: ${maxScoreForOutcome}`}
-                              />
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  max={maxScoreForOutcome}
+                                  step="1"
+                                  name={`q-${student.id}-${question.qNo}`}
+                                  aria-label={`Soru ${question.qNo} notu, ${student.name}`}
+                                  value={grades[student.id]?.[question.qNo] ?? ''}
+                                  onChange={(e) =>
+                                    handleGradeChange(student.id, question.qNo, maxScoreForOutcome, e.target.value)
+                                  }
+                                  className={`text-center text-[13px] font-medium py-0 w-12 min-w-[3rem] mx-auto h-6 px-0 border-transparent hover:border-slate-300 focus:border-blue-500 ${hasWarning ? 'bg-red-50 text-red-700' : 'bg-transparent text-slate-700'}`}
+                                  title={`Max: ${maxScoreForOutcome}`}
+                                />
                             </td>
                           )
                         })}
 
                         <td className="px-1 py-1 relative bg-amber-50/50 text-center">
-                          {gradingMode === 'fast' ? (
-                            <>
-                              <Input
-                                type="number"
-                                min="0"
-                                max={maxTotalScore}
-                                step="1"
-                                name={`total-${student.id}`}
-                                aria-label={`Toplam not, ${student.name}`}
-                                value={displayTotal}
-                                onChange={(e) => handleTotalInputChange(student.id, e.target.value)}
-                                onBlur={() => handleTotalDistribute(student.id)}
-                                onKeyDown={(e) => handleTotalKeyDown(student.id, e)}
-                                className={`text-center text-xs w-14 h-7 font-bold mx-auto px-1 ${hasTotalWarning
-                                  ? 'border-red-500 bg-red-100 animate-pulse'
-                                  : getTotalColorClass(total)
-                                  }`}
-                                title="Değer yazıp Enter'a basın veya kutudan çıkın"
-                              />
-                              {hasTotalWarning && (
-                                <div className="absolute -top-8 left-0 right-0 bg-red-600 text-white text-xs px-2 py-1 rounded z-10 whitespace-nowrap text-center">
-                                  {hasTotalWarning}
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            <div className={`text-center text-xs h-7 flex items-center justify-center font-bold mx-auto ${getTotalColorClass(total)}`}>
-                              {Math.round(total)}
+                          <Input
+                            type="number"
+                            min="0"
+                            max={maxTotalScore}
+                            step="1"
+                            name={`total-${student.id}`}
+                            aria-label={`Toplam not, ${student.name}`}
+                            value={displayTotal}
+                            onChange={(e) => handleTotalInputChange(student.id, e.target.value)}
+                            onBlur={() => handleTotalDistribute(student.id)}
+                            onKeyDown={(e) => handleTotalKeyDown(student.id, e)}
+                            className={`text-center text-[13px] w-14 h-6 font-bold mx-auto px-1 ${hasTotalWarning
+                              ? 'border-red-500 bg-red-100 text-red-700 animate-pulse'
+                              : 'border-amber-200 focus:border-amber-500 text-amber-900 bg-white shadow-sm'
+                              }`}
+                            title="Değer yazıp Enter'a basın veya kutudan çıkın"
+                          />
+                          {hasTotalWarning && (
+                            <div className="absolute -top-8 left-0 right-0 bg-red-600 text-white text-xs px-2 py-1 rounded z-10 whitespace-nowrap text-center">
+                              {hasTotalWarning}
                             </div>
                           )}
                         </td>
@@ -521,7 +522,7 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
           </div>
 
           {/* Mobile Card View */}
-          <div className="lg:hidden space-y-4">
+          <div className={viewMode === 'card' ? 'space-y-4' : 'hidden'}>
             {students.map((student) => {
               const total = calculateTotal(student.id)
               const isPassing = getStatus(total)
@@ -562,12 +563,12 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
                             Kaldı
                           </span>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => onDeleteStudent?.(student.id)}
-                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                          title="Öğrenciyi sil"
-                        >
+                          <button
+                            type="button"
+                            onClick={() => onDeleteStudent?.(student.id)}
+                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="Öğrenciyi sil"
+                          >
                           <Trash2 className="w-5 h-5" />
                         </button>
                       </div>
@@ -579,38 +580,29 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
                         <span className="font-semibold text-amber-800">Toplam Puan</span>
                         <span className="text-sm text-amber-600">max: {maxTotalScore}</span>
                       </div>
-                      {gradingMode === 'fast' ? (
-                        <>
-                          <Input
-                            type="number"
-                            min="0"
-                            max={maxTotalScore}
-                            step="1"
-                            name={`total-${student.id}-mobile`}
-                            aria-label={`Toplam not, ${student.name}`}
-                            value={displayTotal}
-                            onChange={(e) => handleTotalInputChange(student.id, e.target.value)}
-                            onBlur={() => handleTotalDistribute(student.id)}
-                            onKeyDown={(e) => handleTotalKeyDown(student.id, e)}
-                            className={`text-center text-xl font-bold ${hasTotalWarning ? 'border-red-500 bg-red-100' : ''
-                              }`}
-                            placeholder="Toplam girin"
-                          />
-                          {hasTotalWarning && (
-                            <p className="text-xs text-red-600 mt-1 flex items-center">
-                              <AlertTriangle className="w-3 h-3 mr-1" />
-                              {hasTotalWarning}
-                            </p>
-                          )}
-                          <p className="text-xs text-amber-600 mt-1">
-                            💡 Değer yazıp Enter'a basın veya kutudan çıkın
-                          </p>
-                        </>
-                      ) : (
-                        <div className={`text-center text-xl font-bold ${getTotalColorClass(total)}`}>
-                          {Math.round(total)}
-                        </div>
+                      <Input
+                        type="number"
+                        min="0"
+                        max={maxTotalScore}
+                        step="1"
+                        name={`total-${student.id}-mobile`}
+                        aria-label={`Toplam not, ${student.name}`}
+                        value={displayTotal}
+                        onChange={(e) => handleTotalInputChange(student.id, e.target.value)}
+                        onBlur={() => handleTotalDistribute(student.id)}
+                        onKeyDown={(e) => handleTotalKeyDown(student.id, e)}
+                        className={`text-center text-xl font-bold bg-white ${hasTotalWarning ? 'border-red-500 bg-red-100' : 'border-amber-200 focus:border-amber-400'}`}
+                        placeholder="Toplam girin"
+                      />
+                      {hasTotalWarning && (
+                        <p className="text-xs text-red-600 mt-1 flex items-center">
+                          <AlertTriangle className="w-3 h-3 mr-1" />
+                          {hasTotalWarning}
+                        </p>
                       )}
+                      <p className="text-xs text-amber-600 mt-1">
+                        Değer yazıp Enter'a basın veya kutudan çıkın.
+                      </p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
@@ -684,15 +676,15 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
           </div>
 
           {!allGradesFilled() && (
-            <Alert className="mt-4 bg-blue-50 border-blue-300">
-              <AlertTriangle className="h-4 w-4 text-blue-600" />
-              <AlertDescription className="text-blue-700">
-                Lütfen tüm öğrenciler için puanları girin veya <strong>"Tüm Öğrencilere Tam Puan Ver"</strong> butonunu kullanın.
+            <Alert className="m-4 bg-sky-50 border-sky-200 rounded-lg">
+              <AlertTriangle className="h-4 w-4 text-sky-600" />
+              <AlertDescription className="text-sky-700 text-xs">
+                Not: Analiz yapabilmek için tüm kırmızı veya boş hücreleri doldurunuz. Toplu giriş için şeritteki <strong>"Tümüne Tam Puan"</strong> butonunu kullanabilirsiniz.
               </AlertDescription>
             </Alert>
           )}
-        </CardContent>
-      </Card>
+        </>
+      )}
 
       {
         showNavigation && (

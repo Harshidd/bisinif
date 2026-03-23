@@ -8,23 +8,23 @@ Font.register({
     family: 'Roboto',
     fonts: [
         {
-            src: 'https://fonts.gstatic.com/s/roboto/v30/KFOmCnqEu92Fr1Me5WZLCzYlKw.ttf',
+            src: 'https://cdn.jsdelivr.net/gh/googlefonts/roboto@master/src/hinted/Roboto-Regular.ttf',
             fontWeight: 'normal'
         },
         {
-            src: 'https://fonts.gstatic.com/s/roboto/v30/KFOlCnqEu92Fr1MmWUlvAx05IsDqlA.ttf',
+            src: 'https://cdn.jsdelivr.net/gh/googlefonts/roboto@master/src/hinted/Roboto-Bold.ttf',
             fontWeight: 'bold'
         },
         {
-            src: 'https://fonts.gstatic.com/s/roboto/v30/KFOkCnqEu92Fr1Mu52xPKTM1K9nz.ttf',
+            src: 'https://cdn.jsdelivr.net/gh/googlefonts/roboto@master/src/hinted/Roboto-Medium.ttf',
             fontWeight: 'medium'
         },
         {
-            src: 'https://fonts.gstatic.com/s/roboto/v30/KFOkCnqEu92Fr1Mu51xIIzc.ttf',
+            src: 'https://cdn.jsdelivr.net/gh/googlefonts/roboto@master/src/hinted/Roboto-Italic.ttf',
             fontStyle: 'italic'
         },
         {
-            src: 'https://fonts.gstatic.com/s/roboto/v30/KFOjCnqEu92Fr1Mu51TzBhc9AMX6lJBP.ttf',
+            src: 'https://cdn.jsdelivr.net/gh/googlefonts/roboto@master/src/hinted/Roboto-BoldItalic.ttf',
             fontWeight: 'bold',
             fontStyle: 'italic'
         }

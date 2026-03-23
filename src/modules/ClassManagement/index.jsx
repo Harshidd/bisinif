@@ -10,6 +10,7 @@ import BackupPage from './backup/BackupPage'
 import ClassSettingsPage from './pages/ClassSettingsPage'
 import { Routes, Route } from 'react-router-dom'
 import { Settings } from 'lucide-react'
+import InstitutionBanner from '../../components/InstitutionBanner'
 
 import { loadMeta } from './storage/classStorage'
 import { AlertTriangle } from 'lucide-react'
@@ -148,6 +149,7 @@ export default function ClassManagement() {
     return (
         <div className="min-h-screen bg-[#F5F5F7] p-6 font-sans">
             <ClassHeader title="Sınıf Yönetimi" />
+            <InstitutionBanner />
 
             <main className="max-w-6xl mx-auto">
                 <Routes>

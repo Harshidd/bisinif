@@ -1,12 +1,17 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Card, CardContent } from './ui/Card'
 import { Input } from './ui/Input'
 import { Select } from './ui/Select'
 import { Label } from './ui/Label'
 import { Button } from './ui/Button'
+import { Building2 } from 'lucide-react'
+import { loadInstitution } from '../storage/institutionStore'
 
 const GeneralInfoStep = ({ config, onConfigChange, onNext }) => {
   const [errors, setErrors] = useState({})
+
+  // Ana sayfadaki kurum verilerini al
+  const inst = useMemo(() => loadInstitution(), [])
 
   const validateForm = () => {
     const newErrors = {}
@@ -38,61 +43,71 @@ const GeneralInfoStep = ({ config, onConfigChange, onNext }) => {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="text-center mb-10">
-        <h1 className="hero-title mb-3">Genel Bilgiler</h1>
-        <p className="hero-subtitle">Okul ve sınav bilgilerinizi girin.</p>
+      <div className="mb-6 flex flex-col items-center sm:items-start text-center sm:text-left">
+        <h1 className="text-xl font-bold text-gray-900 mb-1">Genel Bilgiler</h1>
+        <p className="text-sm text-gray-500">Sınav bilgilerinizi girin.</p>
       </div>
 
-      <Card className="shadow-apple-lg">
-        <CardContent className="p-8 md:p-10 space-y-6">
+
+
+      <Card className="shadow-apple-md">
+        <CardContent className="p-6 md:p-8 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="city" className="text-gray-600">İl</Label>
-              <Input
-                id="city"
-                value={config.city ?? ''}
-                onChange={(e) => onConfigChange({ city: e.target.value })}
-                placeholder="İl adını girin"
-              />
-            </div>
+            {!inst.il && (
+              <div className="space-y-2">
+                <Label htmlFor="city" className="text-gray-600">İl</Label>
+                <Input
+                  id="city"
+                  value={config.city ?? ''}
+                  onChange={(e) => onConfigChange({ city: e.target.value })}
+                  placeholder="İl adını girin"
+                />
+              </div>
+            )}
 
-            <div className="space-y-2">
-              <Label htmlFor="district" className="text-gray-600">İlçe</Label>
-              <Input
-                id="district"
-                value={config.district ?? ''}
-                onChange={(e) => onConfigChange({ district: e.target.value })}
-                placeholder="İlçe adını girin"
-              />
-            </div>
+            {!inst.ilce && (
+              <div className="space-y-2">
+                <Label htmlFor="district" className="text-gray-600">İlçe</Label>
+                <Input
+                  id="district"
+                  value={config.district ?? ''}
+                  onChange={(e) => onConfigChange({ district: e.target.value })}
+                  placeholder="İlçe adını girin"
+                />
+              </div>
+            )}
 
-            <div className="space-y-2">
-              <Label htmlFor="schoolName" className="text-gray-600">Okul Adı</Label>
-              <Input
-                id="schoolName"
-                value={config.schoolName ?? ''}
-                onChange={(e) => onConfigChange({ schoolName: e.target.value })}
-                placeholder="Okul adını girin"
-                className={errors.schoolName ? 'border-red-300 focus:border-red-400' : ''}
-              />
-              {errors.schoolName && (
-                <p className="text-xs text-red-500">{errors.schoolName}</p>
-              )}
-            </div>
+            {!inst.okulAdi && (
+              <div className="space-y-2">
+                <Label htmlFor="schoolName" className="text-gray-600">Okul Adı</Label>
+                <Input
+                  id="schoolName"
+                  value={config.schoolName ?? ''}
+                  onChange={(e) => onConfigChange({ schoolName: e.target.value })}
+                  placeholder="Okul adını girin"
+                  className={errors.schoolName ? 'border-red-300 focus:border-red-400' : ''}
+                />
+                {errors.schoolName && (
+                  <p className="text-xs text-red-500">{errors.schoolName}</p>
+                )}
+              </div>
+            )}
 
-            <div className="space-y-2">
-              <Label htmlFor="principalName" className="text-gray-600">Okul Müdürü</Label>
-              <Input
-                id="principalName"
-                value={config.principalName ?? ''}
-                onChange={(e) => onConfigChange({ principalName: e.target.value })}
-                placeholder="Müdür adını girin"
-                className={errors.principalName ? 'border-red-300 focus:border-red-400' : ''}
-              />
-              {errors.principalName && (
-                <p className="text-xs text-red-500">{errors.principalName}</p>
-              )}
-            </div>
+            {!inst.mudurAdi && (
+              <div className="space-y-2">
+                <Label htmlFor="principalName" className="text-gray-600">Okul Müdürü</Label>
+                <Input
+                  id="principalName"
+                  value={config.principalName ?? ''}
+                  onChange={(e) => onConfigChange({ principalName: e.target.value })}
+                  placeholder="Müdür adını girin"
+                  className={errors.principalName ? 'border-red-300 focus:border-red-400' : ''}
+                />
+                {errors.principalName && (
+                  <p className="text-xs text-red-500">{errors.principalName}</p>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="courseName" className="text-gray-600">Ders Adı</Label>
@@ -108,51 +123,57 @@ const GeneralInfoStep = ({ config, onConfigChange, onNext }) => {
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="teacherName" className="text-gray-600">Öğretmen Adı</Label>
-              <Input
-                id="teacherName"
-                value={config.teacherName ?? ''}
-                onChange={(e) => onConfigChange({ teacherName: e.target.value })}
-                placeholder="Öğretmen adını girin"
-                className={errors.teacherName ? 'border-red-300 focus:border-red-400' : ''}
-              />
-              {errors.teacherName && (
-                <p className="text-xs text-red-500">{errors.teacherName}</p>
-              )}
-            </div>
+            {!inst.ogretmenAdi && (
+              <div className="space-y-2">
+                <Label htmlFor="teacherName" className="text-gray-600">Öğretmen Adı</Label>
+                <Input
+                  id="teacherName"
+                  value={config.teacherName ?? ''}
+                  onChange={(e) => onConfigChange({ teacherName: e.target.value })}
+                  placeholder="Öğretmen adını girin"
+                  className={errors.teacherName ? 'border-red-300 focus:border-red-400' : ''}
+                />
+                {errors.teacherName && (
+                  <p className="text-xs text-red-500">{errors.teacherName}</p>
+                )}
+              </div>
+            )}
 
-            <div className="space-y-2">
-              <Label htmlFor="gradeLevel" className="text-gray-600">Sınıf</Label>
-              <Select
-                id="gradeLevel"
-                value={config.gradeLevel ?? ''}
-                onChange={(e) => onConfigChange({ gradeLevel: e.target.value })}
-                className={errors.gradeLevel ? 'border-red-300 focus:border-red-400' : ''}
-              >
-                <option value="">Seçiniz...</option>
-                {gradeLevels.map((level) => (
-                  <option key={level} value={level}>{level}</option>
-                ))}
-              </Select>
-              {errors.gradeLevel && (
-                <p className="text-xs text-red-500">{errors.gradeLevel}</p>
-              )}
-            </div>
+            {!inst.sinif && (
+              <div className="space-y-2">
+                <Label htmlFor="gradeLevel" className="text-gray-600">Sınıf</Label>
+                <Select
+                  id="gradeLevel"
+                  value={config.gradeLevel ?? ''}
+                  onChange={(e) => onConfigChange({ gradeLevel: e.target.value })}
+                  className={errors.gradeLevel ? 'border-red-300 focus:border-red-400' : ''}
+                >
+                  <option value="">Seçiniz...</option>
+                  {gradeLevels.map((level) => (
+                    <option key={level} value={level}>{level}</option>
+                  ))}
+                </Select>
+                {errors.gradeLevel && (
+                  <p className="text-xs text-red-500">{errors.gradeLevel}</p>
+                )}
+              </div>
+            )}
 
-            <div className="space-y-2">
-              <Label htmlFor="classSection" className="text-gray-600">Şube</Label>
-              <Select
-                id="classSection"
-                value={config.classSection ?? ''}
-                onChange={(e) => onConfigChange({ classSection: e.target.value })}
-              >
-                <option value="">Seçiniz...</option>
-                {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map((section) => (
-                  <option key={section} value={section}>{section} Şubesi</option>
-                ))}
-              </Select>
-            </div>
+            {!inst.sube && (
+              <div className="space-y-2">
+                <Label htmlFor="classSection" className="text-gray-600">Şube</Label>
+                <Select
+                  id="classSection"
+                  value={config.classSection ?? ''}
+                  onChange={(e) => onConfigChange({ classSection: e.target.value })}
+                >
+                  <option value="">Seçiniz...</option>
+                  {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map((section) => (
+                    <option key={section} value={section}>{section} Şubesi</option>
+                  ))}
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="examName" className="text-gray-600">Sınav Adı</Label>

@@ -40,9 +40,8 @@ const styles = StyleSheet.create({
         backgroundColor: "#FFFFFF"
     },
 
-    // Header Banner
     headerBanner: {
-        backgroundColor: colors.primary,
+        fontFamily: "Roboto",
         borderRadius: 8,
         padding: 16,
         marginBottom: 20,
@@ -50,15 +49,15 @@ const styles = StyleSheet.create({
         justifyContent: "space-between",
         alignItems: "center"
     },
-    studentName: { fontSize: 18, fontWeight: "bold", color: "#FFFFFF" },
-    studentNo: { fontSize: 10, color: "#FFFFFF", opacity: 0.9, marginTop: 4 },
+    studentName: { fontFamily: "Roboto", fontSize: 18, fontWeight: "bold", color: "#FFFFFF" },
+    studentNo: { fontFamily: "Roboto", fontSize: 10, color: "#FFFFFF", opacity: 0.9, marginTop: 4 },
     durumBadge: {
         backgroundColor: "#FFFFFF",
         paddingVertical: 6,
         paddingHorizontal: 12,
         borderRadius: 6
     },
-    durumText: { fontSize: 11, fontWeight: "bold" },
+    durumText: { fontFamily: "Roboto", fontSize: 11, fontWeight: "bold" },
 
     // Stats Row
     statBox: {
@@ -71,12 +70,13 @@ const styles = StyleSheet.create({
         backgroundColor: "#FFFFFF",
         justifyContent: "center"
     },
-    statLabel: { fontSize: 8, color: colors.muted, marginTop: 4 },
-    statValue: { fontSize: 16, fontWeight: "bold", color: colors.text },
+    statLabel: { fontFamily: "Roboto", fontSize: 8, color: colors.muted, marginTop: 4 },
+    statValue: { fontFamily: "Roboto", fontSize: 16, fontWeight: "bold", color: colors.text },
 
     // Section
     section: { marginBottom: 16 },
     sectionTitle: {
+        fontFamily: "Roboto",
         fontSize: 11,
         fontWeight: "bold",
         color: colors.text,
@@ -94,10 +94,10 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: colors.border
     },
-    th: { fontSize: 9, fontWeight: "bold", padding: 6, color: colors.text },
+    th: { fontFamily: "Roboto", fontSize: 9, fontWeight: "bold", padding: 6, color: colors.text },
     tableRow: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: colors.border },
     tableRowAlt: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: colors.border, backgroundColor: colors.bgAlt },
-    td: { fontSize: 9, padding: 6 },
+    td: { fontFamily: "Roboto", fontSize: 9, padding: 6 },
 
     // Question Grid
     questionGrid: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
@@ -110,8 +110,8 @@ const styles = StyleSheet.create({
         alignItems: "center",
         backgroundColor: "#FFFFFF"
     },
-    questionNo: { fontSize: 7, color: colors.muted },
-    questionScore: { fontSize: 10, fontWeight: "bold" },
+    questionNo: { fontFamily: "Roboto", fontSize: 7, color: colors.muted },
+    questionScore: { fontFamily: "Roboto", fontSize: 10, fontWeight: "bold" },
 
     // Comment Box
     commentBox: {
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
         borderTopWidth: 0.5,
         borderTopColor: colors.border
     },
-    footerText: { fontSize: 8, color: colors.muted }
+    footerText: { fontFamily: "Roboto", fontSize: 8, color: colors.muted }
 });
 
 // ============================================
@@ -226,7 +226,7 @@ const StudentCardPage = ({ student, config, analysis, index, total }) => {
     return (
         <Page size="A4" style={styles.page}>
             {/* Header Banner */}
-            <View style={styles.headerBanner}>
+            <View style={[styles.headerBanner, { backgroundColor: durumColor }]}>
                 <View>
                     <Text style={styles.studentName}>{getStudentName(student)}</Text>
                     <Text style={styles.studentNo}>No: {getStudentNo(student)}</Text>
@@ -257,7 +257,7 @@ const StudentCardPage = ({ student, config, analysis, index, total }) => {
 
                     {/* Öğretmen Görüşü */}
                     <View style={[styles.commentBox, { marginTop: 12, borderColor: durumColor, backgroundColor: durumColor + "10" }]}>
-                        <Text style={{ fontSize: 9, color: colors.text, fontStyle: "italic", lineHeight: 1.4 }}>
+                        <Text style={{ fontFamily: "Roboto", fontSize: 9, color: colors.text, fontStyle: "italic", lineHeight: 1.4 }}>
                             {studentTotal >= threshold
                                 ? "\"Başarılı bir performans sergilenmiştir. Çalışmalarına devam etmesi önerilir.\""
                                 : "\"Genel başarınızı artırmanız önerilir. Eksik kazanımlar için telafi çalışması yapılmalıdır.\""
@@ -350,7 +350,7 @@ const StudentCardPage = ({ student, config, analysis, index, total }) => {
 
             {/* Footer */}
             <View style={styles.footer} fixed>
-                <Text style={styles.footerText}>{safeText(config?.schoolName, "BiSınıf")} • {safeText(config?.className)}</Text>
+                <Text style={styles.footerText}>{safeText(config?.schoolName, "BiSınıf")} • {[config?.gradeLevel, config?.classSection ? `${config.classSection} Şb.` : ''].filter(Boolean).join(' ') || '-'}</Text>
                 <Text style={styles.footerText}>Sayfa {index + 1} / {total}</Text>
             </View>
         </Page>

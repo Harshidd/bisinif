@@ -6,13 +6,75 @@ import { pdf, Document } from "@react-pdf/renderer";
 import FullReportDocument, { ClassListPages, OutcomeSuccessPage, RemedialPage, SummaryAndAnalysisPage, ItemAnalysisPage } from "./FullReportDocument";
 import StudentCardsDocument from "./StudentCardsDocument";
 
+import { loadInstitution } from '../../storage/institutionStore';
+
 // ============================================
 // YARDIMCI FONKSİYONLAR
 // ============================================
 
-const getDateStamp = () => {
+const generateSafeFileName = (config, reportType, studentName = null) => {
+    // Kurum bilgisini de hesaba katalım (Öncelikli)
+    const inst = loadInstitution() || {};
+    
+    // Fallback logic
+    const school = (inst.okulAdi || config?.schoolName || '').trim();
+    
+    // Sadece rakamı almak için regex (ör: "5. Sınıf" -> "5")
+    const gradeMatch = (inst.sinif || config?.gradeLevel || '').match(/\d+/);
+    const grade = gradeMatch ? gradeMatch[0] : '';
+    
+    // "A Şubesi" -> "A"
+    let section = (inst.sube || config?.classSection || '').trim();
+    if (section.toLowerCase().includes('şube')) {
+        section = section.split(' ')[0];
+    }
+    
+    const classInfo = grade || section ? `${grade}${section}` : '';
+    const course = (config?.courseName || '').trim();
+    const exam = (config?.examName || '').trim();
+    
+    // Bugünün tarihi: YYYY-MM-DD
     const now = new Date();
-    return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    
+    const parts = [];
+    if (school) parts.push(school);
+    if (classInfo) parts.push(classInfo);
+    if (course) parts.push(course);
+    if (exam) parts.push(exam);
+    if (studentName) parts.push(studentName);
+    if (reportType) parts.push(reportType);
+    parts.push(dateStr);
+    
+    // Birleştir
+    let filename = parts.join('_');
+    
+    // Türkçe karakter dönüşümü
+    const charMap = {
+        'ç': 'c', 'Ç': 'C',
+        'ğ': 'g', 'Ğ': 'G',
+        'ı': 'i', 'İ': 'I',
+        'ö': 'o', 'Ö': 'O',
+        'ş': 's', 'Ş': 'S',
+        'ü': 'u', 'Ü': 'U'
+    };
+    
+    filename = filename.replace(/[çÇğĞıİöÖşŞüÜ]/g, char => charMap[char]);
+    
+    // Boşlukları ve geçersiz karakterleri alt çizgi yap
+    filename = filename.replace(/[^a-zA-Z0-9_\-]/g, '_');
+    
+    // Birden fazla alt çizgiyi teke indir ve baş/sondaki alt çizgileri sil
+    filename = filename.replace(/_+/g, '_').replace(/^_|_$/g, '');
+    
+    // Çok uzarsa kes (Max 80 karakter civarı, ama tarih ve tip kısımlarını korumak daha iyi)
+    // Şimdilik sadece Windows vb limitlerine takılmaması için 150'den keselim
+    if (filename.length > 150) {
+        filename = filename.substring(0, 150).replace(/_+$/, '');
+    }
+    
+    // Fallback
+    return `${filename}.pdf`;
 };
 
 const downloadBlob = (blob, filename) => {
@@ -20,7 +82,12 @@ const downloadBlob = (blob, filename) => {
     const link = document.createElement('a');
     link.href = url;
     link.download = filename;
+    
+    // Better browser compatibility: append to body
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
+    
     URL.revokeObjectURL(url);
 };
 
@@ -38,7 +105,7 @@ const downloadBlob = (blob, filename) => {
 export const exportFullReportPDF = async ({ analysis, config, questions }) => {
     const doc = React.createElement(FullReportDocument, { analysis, config, questions });
     const blob = await pdf(doc).toBlob();
-    downloadBlob(blob, `BiSınıf_TamRapor_${getDateStamp()}.pdf`);
+    downloadBlob(blob, generateSafeFileName(config, 'TamRapor'));
 };
 
 /**
@@ -48,7 +115,7 @@ export const exportFullReportPDF = async ({ analysis, config, questions }) => {
 export const exportStudentCardsPDF = async ({ analysis, config, students }) => {
     const doc = React.createElement(StudentCardsDocument, { analysis, config, students });
     const blob = await pdf(doc).toBlob();
-    downloadBlob(blob, `BiSınıf_Karneler_${getDateStamp()}.pdf`);
+    downloadBlob(blob, generateSafeFileName(config, 'Karneler'));
 };
 
 /**
@@ -63,25 +130,28 @@ export const exportSingleStudentPDF = async ({ analysis, config, student }) => {
     });
     const blob = await pdf(doc).toBlob();
     const studentName = student?.name || student?.fullName || 'Ogrenci';
-    const safeName = studentName.replace(/[^a-zA-Z0-9]/g, '_');
-    downloadBlob(blob, `BiSınıf_Karne_${safeName}_${getDateStamp()}.pdf`);
+    downloadBlob(blob, generateSafeFileName(config, 'Karne', studentName));
 };
 
 // ============================================
 // BÖLÜM BAZLI EXPORT FONKSİYONLARI
 // ============================================
 
+/** Helper: gradeLevel + classSection → "5. Sınıf A Şubesi" */
+const composeClassName = (config) =>
+    [config?.gradeLevel, config?.classSection ? `${config.classSection} Şubesi` : ''].filter(Boolean).join(' ') || 'Sınıf';
+
 /**
  * SINIF LİSTESİ PDF
  */
 export const exportClassListPDF = async ({ analysis, config }) => {
     const doc = (
-        <Document title={`Sınıf Listesi - ${config?.className}`}>
+        <Document title={`Sınıf Listesi - ${composeClassName(config)}`}>
             <ClassListPages analysis={analysis} config={config} />
         </Document>
     );
     const blob = await pdf(doc).toBlob();
-    downloadBlob(blob, `BiSınıf_SinifListesi_${getDateStamp()}.pdf`);
+    downloadBlob(blob, generateSafeFileName(config, 'SinifListesi'));
 };
 
 /**
@@ -89,12 +159,12 @@ export const exportClassListPDF = async ({ analysis, config }) => {
  */
 export const exportOutcomeAnalysisPDF = async ({ analysis, config }) => {
     const doc = (
-        <Document title={`Kazanım Analizi - ${config?.className}`}>
+        <Document title={`Kazanım Analizi - ${composeClassName(config)}`}>
             <OutcomeSuccessPage analysis={analysis} config={config} />
         </Document>
     );
     const blob = await pdf(doc).toBlob();
-    downloadBlob(blob, `BiSınıf_KazanimAnalizi_${getDateStamp()}.pdf`);
+    downloadBlob(blob, generateSafeFileName(config, 'KazanimAnalizi'));
 };
 
 /**
@@ -102,12 +172,12 @@ export const exportOutcomeAnalysisPDF = async ({ analysis, config }) => {
  */
 export const exportRemedialListPDF = async ({ analysis, config }) => {
     const doc = (
-        <Document title={`Telafi Listesi - ${config?.className}`}>
+        <Document title={`Telafi Listesi - ${composeClassName(config)}`}>
             <RemedialPage analysis={analysis} config={config} />
         </Document>
     );
     const blob = await pdf(doc).toBlob();
-    downloadBlob(blob, `BiSınıf_TelafiListesi_${getDateStamp()}.pdf`);
+    downloadBlob(blob, generateSafeFileName(config, 'TelafiListesi'));
 };
 
 /**
@@ -115,12 +185,12 @@ export const exportRemedialListPDF = async ({ analysis, config }) => {
  */
 export const exportItemAnalysisPDF = async ({ analysis, config }) => {
     const doc = (
-        <Document title={`Soru Analizi - ${config?.className}`}>
+        <Document title={`Soru Analizi - ${composeClassName(config)}`}>
             <ItemAnalysisPage analysis={analysis} config={config} />
         </Document>
     );
     const blob = await pdf(doc).toBlob();
-    downloadBlob(blob, `BiSınıf_SoruAnalizi_${getDateStamp()}.pdf`);
+    downloadBlob(blob, generateSafeFileName(config, 'SoruAnalizi'));
 };
 
 /**
@@ -128,10 +198,10 @@ export const exportItemAnalysisPDF = async ({ analysis, config }) => {
  */
 export const exportSummaryPDF = async ({ analysis, config, questions }) => {
     const doc = (
-        <Document title={`Özet Rapor - ${config?.className}`}>
+        <Document title={`Özet Rapor - ${composeClassName(config)}`}>
             <SummaryAndAnalysisPage analysis={analysis} config={config} />
         </Document>
     );
     const blob = await pdf(doc).toBlob();
-    downloadBlob(blob, `BiSınıf_OzetRapor_${getDateStamp()}.pdf`);
+    downloadBlob(blob, generateSafeFileName(config, 'OzetRapor'));
 };

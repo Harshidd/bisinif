@@ -59,10 +59,10 @@ const styles = StyleSheet.create({
         justifyContent: "space-between",
         alignItems: "flex-end"
     },
-    h1: { fontSize: 14, fontWeight: "bold", color: colors.primary },
-    h2: { fontSize: 11, fontWeight: "bold", color: colors.text, marginBottom: 6 },
-    h3: { fontSize: 10, fontWeight: "bold", color: colors.text, marginBottom: 4 },
-    subtitle: { fontSize: 8, color: colors.muted },
+    h1: { fontFamily: "Roboto", fontSize: 14, fontWeight: "bold", color: colors.primary },
+    h2: { fontFamily: "Roboto", fontSize: 11, fontWeight: "bold", color: colors.text, marginBottom: 6 },
+    h3: { fontFamily: "Roboto", fontSize: 10, fontWeight: "bold", color: colors.text, marginBottom: 4 },
+    subtitle: { fontFamily: "Roboto", fontSize: 8, color: colors.muted },
 
     // Grid & Cards
     row: { flexDirection: "row", gap: 8 },
@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
         backgroundColor: "#FFFFFF",
         marginBottom: 8
     },
-    cardTitle: { fontSize: 10, fontWeight: "bold", marginBottom: 6, color: colors.text },
+    cardTitle: { fontFamily: "Roboto", fontSize: 10, fontWeight: "bold", marginBottom: 6, color: colors.text },
 
     // Stats Row
     statsRow: { flexDirection: "row", gap: 6, marginBottom: 10 },
@@ -88,9 +88,9 @@ const styles = StyleSheet.create({
         backgroundColor: colors.bg,
         alignItems: "center"
     },
-    statLabel: { fontSize: 7, color: colors.muted, marginBottom: 2 },
-    statValue: { fontSize: 12, fontWeight: "bold", color: colors.text },
-    statSub: { fontSize: 7, color: colors.muted },
+    statLabel: { fontFamily: "Roboto", fontSize: 7, color: colors.muted, marginBottom: 2 },
+    statValue: { fontFamily: "Roboto", fontSize: 12, fontWeight: "bold", color: colors.text },
+    statSub: { fontFamily: "Roboto", fontSize: 7, color: colors.muted },
 
     // Table
     table: {
@@ -116,9 +116,9 @@ const styles = StyleSheet.create({
         borderBottomWidth: 0.5,
         borderBottomColor: colors.border
     },
-    th: { padding: 4, fontWeight: "bold", fontSize: 8, color: colors.muted },
-    td: { padding: 4, fontSize: 8 },
-    tdBold: { padding: 4, fontSize: 8, fontWeight: "bold" },
+    th: { fontFamily: "Roboto", padding: 4, fontWeight: "bold", fontSize: 8, color: colors.muted },
+    td: { fontFamily: "Roboto", padding: 4, fontSize: 8 },
+    tdBold: { fontFamily: "Roboto", padding: 4, fontSize: 8, fontWeight: "bold" },
 
     // Column widths
     colSira: { width: "8%" },
@@ -129,10 +129,10 @@ const styles = StyleSheet.create({
 
     // Bar chart
     barRow: { flexDirection: "row", alignItems: "center", marginBottom: 5 },
-    barLabel: { width: 40, fontSize: 8, color: colors.muted },
+    barLabel: { fontFamily: "Roboto", width: 40, fontSize: 8, color: colors.muted },
     barBg: { flex: 1, height: 8, backgroundColor: colors.border, borderRadius: 4, overflow: "hidden" },
     barFill: { height: 8, borderRadius: 4 },
-    barValue: { width: 24, fontSize: 8, textAlign: "right", fontWeight: "bold" },
+    barValue: { fontFamily: "Roboto", width: 24, fontSize: 8, textAlign: "right", fontWeight: "bold" },
 
     // Mini bar
     miniBarBg: { height: 5, backgroundColor: colors.border, borderRadius: 2, overflow: "hidden", marginTop: 2 },
@@ -208,25 +208,37 @@ const styles = StyleSheet.create({
 // YARDIMCI BİLEŞENLER
 // ============================================
 
-const Header = ({ title, config }) => (
-    <View style={styles.header}>
-        <View>
-            <Text style={styles.h1}>{title}</Text>
-            <Text style={styles.subtitle}>BiSınıf Sınav Analiz Sistemi</Text>
-        </View>
-        <View style={{ alignItems: "flex-end" }}>
-            <Text style={styles.subtitle}>{safeText(config?.schoolName)}</Text>
-            <Text style={styles.subtitle}>{formatDate(config?.examDate ?? config?.date)}</Text>
-        </View>
-    </View>
-);
+const Header = ({ title, config }) => {
+    // Sınıf bilgisini gradeLevel + classSection'dan oluştur
+    const className = [config?.gradeLevel, config?.classSection ? `${config.classSection} Şubesi` : ''].filter(Boolean).join(' ');
+    // İl/İlçe bilgisi
+    const location = [config?.city, config?.district].filter(Boolean).join(' / ');
 
-const Footer = ({ schoolName }) => (
-    <View style={styles.footer} fixed>
-        <Text style={styles.footerText}>{safeText(schoolName, "BiSınıf")}</Text>
-        <Text style={styles.footerText} render={({ pageNumber, totalPages }) => `Sayfa ${pageNumber} / ${totalPages}`} />
-    </View>
-);
+    return (
+        <View style={styles.header}>
+            <View>
+                <Text style={styles.h1}>{title}</Text>
+                <Text style={styles.subtitle}>BiSınıf Sınav Analiz Sistemi</Text>
+            </View>
+            <View style={{ alignItems: "flex-end" }}>
+                <Text style={styles.subtitle}>{safeText(config?.schoolName)}</Text>
+                {location ? <Text style={styles.subtitle}>{location}</Text> : null}
+                <Text style={styles.subtitle}>{formatDate(config?.examDate ?? config?.date)}</Text>
+            </View>
+        </View>
+    );
+};
+
+const Footer = ({ config }) => {
+    const className = [config?.gradeLevel, config?.classSection ? `${config.classSection} Şubesi` : ''].filter(Boolean).join(' ');
+    const label = [safeText(config?.schoolName, 'BiSınıf'), className].filter(Boolean).join(' • ');
+    return (
+        <View style={styles.footer} fixed>
+            <Text style={styles.footerText}>{label}</Text>
+            <Text style={styles.footerText} render={({ pageNumber, totalPages }) => `Sayfa ${pageNumber} / ${totalPages}`} />
+        </View>
+    );
+};
 
 const StatBox = ({ label, value, sub, color }) => (
     <View style={styles.statBox}>
@@ -494,13 +506,19 @@ export const SummaryAndAnalysisPage = ({ analysis, config }) => {
 
             {/* Meta Bilgiler */}
             <View style={styles.metaRow}>
+                {(config?.city || config?.district) && (
+                    <View style={styles.metaBox}>
+                        <Text style={styles.metaLabel}>İL / İLÇE</Text>
+                        <Text style={styles.metaValue}>{[config?.city, config?.district].filter(Boolean).join(' / ')}</Text>
+                    </View>
+                )}
                 <View style={styles.metaBox}>
                     <Text style={styles.metaLabel}>OKUL</Text>
                     <Text style={styles.metaValue}>{safeText(config?.schoolName)}</Text>
                 </View>
                 <View style={styles.metaBox}>
                     <Text style={styles.metaLabel}>SINIF</Text>
-                    <Text style={styles.metaValue}>{safeText(config?.className)}</Text>
+                    <Text style={styles.metaValue}>{[config?.gradeLevel, config?.classSection ? `${config.classSection} Şb.` : ''].filter(Boolean).join(' ') || '-'}</Text>
                 </View>
                 <View style={styles.metaBox}>
                     <Text style={styles.metaLabel}>DERS</Text>
@@ -510,6 +528,12 @@ export const SummaryAndAnalysisPage = ({ analysis, config }) => {
                     <Text style={styles.metaLabel}>ÖĞRETMEN</Text>
                     <Text style={styles.metaValue}>{safeText(config?.teacherName)}</Text>
                 </View>
+                {config?.principalName && (
+                    <View style={styles.metaBox}>
+                        <Text style={styles.metaLabel}>MÜDÜR</Text>
+                        <Text style={styles.metaValue}>{safeText(config?.principalName)}</Text>
+                    </View>
+                )}
                 <View style={styles.metaBox}>
                     <Text style={styles.metaLabel}>TARİH</Text>
                     <Text style={styles.metaValue}>{formatDate(config?.examDate ?? config?.date)}</Text>
@@ -645,7 +669,7 @@ export const SummaryAndAnalysisPage = ({ analysis, config }) => {
                 )}
             </View>
 
-            <Footer schoolName={config?.schoolName} />
+            <Footer config={config} />
         </Page>
     );
 };
@@ -669,6 +693,7 @@ export const ClassListPages = ({ analysis, config }) => {
     // Daha okunaklı ve "oturaklı" stiller
     const rowStyles = {
         th: {
+            fontFamily: "Roboto",
             fontSize: 9,
             paddingVertical: 4,
             paddingHorizontal: 2,
@@ -680,6 +705,7 @@ export const ClassListPages = ({ analysis, config }) => {
             textAlign: "center"
         },
         td: {
+            fontFamily: "Roboto",
             fontSize: 9,
             paddingVertical: 3,
             paddingHorizontal: 2,
@@ -688,6 +714,7 @@ export const ClassListPages = ({ analysis, config }) => {
             textAlign: "center"
         },
         tdLeft: {
+            fontFamily: "Roboto",
             fontSize: 9,
             paddingVertical: 3,
             paddingHorizontal: 4,
@@ -696,6 +723,7 @@ export const ClassListPages = ({ analysis, config }) => {
             textAlign: "left"
         },
         tdBold: {
+            fontFamily: "Roboto",
             fontSize: 9,
             fontWeight: "bold",
             paddingVertical: 3,
@@ -770,7 +798,7 @@ export const ClassListPages = ({ analysis, config }) => {
                 })}
             </View>
 
-            <Footer schoolName={config?.schoolName} />
+            <Footer config={config} />
         </Page>
     ));
 };
@@ -797,7 +825,7 @@ export const RemedialPage = ({ analysis, config }) => {
             <Header title="Telafi Programı Önerisi" config={config} />
 
             <View style={{ marginBottom: 15, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-                <Text style={{ fontSize: 11, color: colors.muted }}>
+                <Text style={{ fontFamily: "Roboto", fontSize: 11, color: colors.muted }}>
                     Aşağıdaki kazanımlarda başarı oranı %{threshold} altında kalan veya eksik öğrenmesi bulunan öğrenciler listelenmiştir.
                 </Text>
             </View>
@@ -805,9 +833,9 @@ export const RemedialPage = ({ analysis, config }) => {
             <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 6, overflow: "hidden" }}>
                 {/* Header */}
                 <View style={{ flexDirection: "row", backgroundColor: colors.bg, paddingVertical: 8, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: colors.primary }}>
-                    <Text style={{ fontSize: 10, fontWeight: "bold", width: "40%", color: colors.primary }}>Kazanım</Text>
-                    <Text style={{ fontSize: 10, fontWeight: "bold", width: "10%", textAlign: "center", color: colors.primary }}>Sayı</Text>
-                    <Text style={{ fontSize: 10, fontWeight: "bold", width: "50%", color: colors.primary }}>Öğrenci Listesi</Text>
+                    <Text style={{ fontFamily: "Roboto", fontSize: 10, fontWeight: "bold", width: "40%", color: colors.primary }}>Kazanım</Text>
+                    <Text style={{ fontFamily: "Roboto", fontSize: 10, fontWeight: "bold", width: "10%", textAlign: "center", color: colors.primary }}>Sayı</Text>
+                    <Text style={{ fontFamily: "Roboto", fontSize: 10, fontWeight: "bold", width: "50%", color: colors.primary }}>Öğrenci Listesi</Text>
                 </View>
 
                 {outcomesWithRemedial.map((o, i) => {
@@ -818,16 +846,16 @@ export const RemedialPage = ({ analysis, config }) => {
                     return (
                         <View key={`rem-${i}`} style={{ flexDirection: "row", backgroundColor: bgColor, paddingVertical: 8, paddingHorizontal: 4, borderBottomWidth: 0.5, borderBottomColor: colors.border }}>
                             <View style={{ width: "40%", paddingRight: 8 }}>
-                                <Text style={{ fontSize: 9, color: colors.muted, marginBottom: 2 }}>K{i + 1}</Text>
-                                <Text style={{ fontSize: 10, color: colors.text }}>{title}</Text>
+                                <Text style={{ fontFamily: "Roboto", fontSize: 9, color: colors.muted, marginBottom: 2 }}>K{i + 1}</Text>
+                                <Text style={{ fontFamily: "Roboto", fontSize: 10, color: colors.text }}>{title}</Text>
                             </View>
                             <View style={{ width: "10%", justifyContent: "center", alignItems: "center" }}>
                                 <View style={{ backgroundColor: "#FCA5A5", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 }}>
-                                    <Text style={{ fontSize: 10, fontWeight: "bold", color: "#991B1B" }}>{failedStudents.length}</Text>
+                                    <Text style={{ fontFamily: "Roboto", fontSize: 10, fontWeight: "bold", color: "#991B1B" }}>{failedStudents.length}</Text>
                                 </View>
                             </View>
                             <View style={{ width: "50%", justifyContent: "center" }}>
-                                <Text style={{ fontSize: 9, color: colors.text, lineHeight: 1.4 }}>
+                                <Text style={{ fontFamily: "Roboto", fontSize: 9, color: colors.text, lineHeight: 1.4 }}>
                                     {failedStudents.map(s => getStudentName(s)).join(", ")}
                                 </Text>
                             </View>
@@ -836,7 +864,7 @@ export const RemedialPage = ({ analysis, config }) => {
                 })}
             </View>
 
-            <Footer schoolName={config?.schoolName} />
+            <Footer config={config} />
         </Page>
     );
 };
@@ -875,15 +903,15 @@ export const OutcomeSuccessPage = ({ analysis, config }) => {
             <View style={{ marginBottom: 15 }}>
                 {/* İstatistik Header */}
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 10, borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 4 }}>
-                    <Text style={{ fontSize: 13, fontWeight: "bold", color: colors.primary }}>Kazanım Başarı Oranları</Text>
+                    <Text style={{ fontFamily: "Roboto", fontSize: 13, fontWeight: "bold", color: colors.primary }}>Kazanım Başarı Oranları</Text>
                     <View style={{ flexDirection: "row", gap: 10 }}>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
                             <View style={{ width: 10, height: 10, backgroundColor: colors.success, borderRadius: 3 }} />
-                            <Text style={{ fontSize: 9, color: colors.muted }}>Başarılı</Text>
+                            <Text style={{ fontFamily: "Roboto", fontSize: 9, color: colors.muted }}>Başarılı</Text>
                         </View>
                         <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
                             <View style={{ width: 10, height: 10, backgroundColor: colors.danger, borderRadius: 3 }} />
-                            <Text style={{ fontSize: 9, color: colors.muted }}>Telafi</Text>
+                            <Text style={{ fontFamily: "Roboto", fontSize: 9, color: colors.muted }}>Telafi</Text>
                         </View>
                     </View>
                 </View>
@@ -900,17 +928,17 @@ export const OutcomeSuccessPage = ({ analysis, config }) => {
                             <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
                                 <View style={{ flex: 1, paddingRight: 8 }}>
                                     <View style={{ flexDirection: "row", alignItems: "center" }}>
-                                        <Text style={{ fontSize: 8, fontWeight: "bold", color: colors.muted, marginRight: 4 }}>K{i + 1}</Text>
-                                        <Text style={{ fontSize: 9, fontWeight: "bold", color: colors.text }} numberOfLines={1}>
+                                        <Text style={{ fontFamily: "Roboto", fontSize: 8, fontWeight: "bold", color: colors.muted, marginRight: 4 }}>K{i + 1}</Text>
+                                        <Text style={{ fontFamily: "Roboto", fontSize: 9, fontWeight: "bold", color: colors.text }} numberOfLines={1}>
                                             {outcome.title}
                                         </Text>
                                     </View>
                                 </View>
                                 <View style={{ alignItems: "flex-end" }}>
-                                    <Text style={{ fontSize: 11, fontWeight: "bold", color: successRate >= threshold ? colors.success : colors.danger }}>
+                                    <Text style={{ fontFamily: "Roboto", fontSize: 11, fontWeight: "bold", color: successRate >= threshold ? colors.success : colors.danger }}>
                                         %{successRate.toFixed(0)}
                                     </Text>
-                                    <Text style={{ fontSize: 7, color: colors.muted }}>
+                                    <Text style={{ fontFamily: "Roboto", fontSize: 7, color: colors.muted }}>
                                         {failedCount} Telafi
                                     </Text>
                                 </View>
@@ -933,14 +961,14 @@ export const OutcomeSuccessPage = ({ analysis, config }) => {
             {/* TELAFİ LİSTESİ TABLOSU */}
             {failureData.length > 0 ? (
                 <View style={{ marginTop: 5, padding: 8, backgroundColor: "#FEF2F2", borderRadius: 6, borderWidth: 1, borderColor: colors.danger + "30" }}>
-                    <Text style={{ fontSize: 11, fontWeight: "bold", color: colors.danger, marginBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.danger + "30", paddingBottom: 4 }}>
+                    <Text style={{ fontFamily: "Roboto", fontSize: 11, fontWeight: "bold", color: colors.danger, marginBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.danger + "30", paddingBottom: 4 }}>
                         Telafi Gereken Öğrenciler
                     </Text>
 
                     <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: colors.danger + "30", paddingBottom: 2, marginBottom: 4 }}>
-                        <Text style={{ fontSize: 8, fontWeight: "bold", width: "40%", color: colors.danger }}>Kazanım</Text>
-                        <Text style={{ fontSize: 8, fontWeight: "bold", width: "10%", textAlign: "center", color: colors.danger }}>Sayı</Text>
-                        <Text style={{ fontSize: 8, fontWeight: "bold", width: "50%", color: colors.danger }}>Öğrenci Listesi</Text>
+                        <Text style={{ fontFamily: "Roboto", fontSize: 8, fontWeight: "bold", width: "40%", color: colors.danger }}>Kazanım</Text>
+                        <Text style={{ fontFamily: "Roboto", fontSize: 8, fontWeight: "bold", width: "10%", textAlign: "center", color: colors.danger }}>Sayı</Text>
+                        <Text style={{ fontFamily: "Roboto", fontSize: 8, fontWeight: "bold", width: "50%", color: colors.danger }}>Öğrenci Listesi</Text>
                     </View>
 
                     {failureData.map((outcome, idx) => {
@@ -948,16 +976,16 @@ export const OutcomeSuccessPage = ({ analysis, config }) => {
                         return (
                             <View key={`telafi-${idx}`} style={{ flexDirection: "row", marginBottom: 4, paddingBottom: 4, borderBottomWidth: 0.5, borderBottomColor: colors.danger + "20" }}>
                                 <View style={{ width: "40%", paddingRight: 4 }}>
-                                    <Text style={{ fontSize: 8, color: colors.text }}>
+                                    <Text style={{ fontFamily: "Roboto", fontSize: 8, color: colors.text }}>
                                         <Text style={{ fontWeight: "bold" }}>K{outcome.originalIndex + 1}</Text>: {outcome.title.slice(0, 30)}
                                         {outcome.title.length > 30 ? "..." : ""}
                                     </Text>
                                 </View>
                                 <View style={{ width: "10%", alignItems: "center" }}>
-                                    <Text style={{ fontSize: 9, fontWeight: "bold", color: colors.danger }}>{outcome.failedCount}</Text>
+                                    <Text style={{ fontFamily: "Roboto", fontSize: 9, fontWeight: "bold", color: colors.danger }}>{outcome.failedCount}</Text>
                                 </View>
                                 <View style={{ width: "50%" }}>
-                                    <Text style={{ fontSize: 8, color: colors.text, lineHeight: 1.2 }}>
+                                    <Text style={{ fontFamily: "Roboto", fontSize: 8, color: colors.text, lineHeight: 1.2 }}>
                                         {studentNames}
                                     </Text>
                                 </View>
@@ -967,16 +995,16 @@ export const OutcomeSuccessPage = ({ analysis, config }) => {
                 </View>
             ) : (
                 <View style={{ marginTop: 10, padding: 10, backgroundColor: "#F0FDF4", borderRadius: 6, borderWidth: 1, borderColor: colors.success + "30", alignItems: "center" }}>
-                    <Text style={{ fontSize: 10, color: colors.success, fontWeight: "bold" }}>
+                    <Text style={{ fontFamily: "Roboto", fontSize: 10, color: colors.success, fontWeight: "bold" }}>
                         🎉 Tebrikler! Tüm kazanımlarda tam başarı sağlandı.
                     </Text>
-                    <Text style={{ fontSize: 8, color: colors.muted, marginTop: 2 }}>
+                    <Text style={{ fontFamily: "Roboto", fontSize: 8, color: colors.muted, marginTop: 2 }}>
                         Telafi gerektiren öğrenci bulunmamaktadır.
                     </Text>
                 </View>
             )}
 
-            <Footer schoolName={config?.schoolName} />
+            <Footer config={config} />
         </Page>
     );
 };
@@ -1056,7 +1084,7 @@ export const ItemAnalysisPage = ({ analysis, config }) => {
                 })}
             </View>
 
-            <Footer schoolName={config?.schoolName} />
+            <Footer config={config} />
         </Page>
     ));
 };

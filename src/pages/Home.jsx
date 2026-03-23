@@ -1,9 +1,24 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { BarChart3, Users, ChevronRight, School, Camera, FileText } from 'lucide-react'
+import { BarChart3, Users, ChevronRight, School, Camera, FileText, Info, X } from 'lucide-react'
+import InstitutionCard from '../components/InstitutionCard'
 
 // Home Layout
 export default function Home() {
+    const [showOnboarding, setShowOnboarding] = useState(false)
+
+    useEffect(() => {
+        const seen = localStorage.getItem('bisinif_onboarding_seen')
+        if (!seen) {
+            setShowOnboarding(true)
+        }
+    }, [])
+
+    const handleDismissOnboarding = () => {
+        localStorage.setItem('bisinif_onboarding_seen', 'true')
+        setShowOnboarding(false)
+    }
+
     return (
         <div className="min-h-screen bg-[#F5F5F7] flex flex-col justify-center items-center p-6">
             <div className="w-full max-w-4xl animate-fade-in">
@@ -19,6 +34,39 @@ export default function Home() {
                     <p className="text-xl text-gray-500 font-medium">
                         Bugün ne yapmak istiyorsun?
                     </p>
+                </div>
+
+                {/* İlk Açılış Bilgilendirme Kartı */}
+                {showOnboarding && (
+                    <div className="mb-6 bg-blue-50 border border-blue-200 rounded-2xl p-5 md:p-6 flex items-start gap-4 shadow-sm relative">
+                        <button 
+                            onClick={handleDismissOnboarding} 
+                            className="absolute top-4 right-4 text-blue-400 hover:text-blue-600 transition-colors"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 shrink-0">
+                            <Info className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-blue-900 mb-1.5">BiSınıf'a Hoş Geldiniz!</h3>
+                            <p className="text-blue-800/80 text-sm leading-relaxed max-w-2xl">
+                                Sistemi en verimli şekilde kullanmak için lütfen öncelikle aşağıdaki <span className="font-semibold text-blue-900">Kurum & Sınıf Bilgileri</span> kartını doldurun. 
+                                Burada girdiğiniz veriler; Sınav Analizi, Evrak Yönetimi ve diğer tüm modüllerde otomatik olarak kullanılacak ve sizi tekrar tekrar form doldurmaktan kurtaracaktır.
+                            </p>
+                            <button 
+                                onClick={handleDismissOnboarding} 
+                                className="mt-3 text-sm font-semibold text-blue-700 hover:text-blue-900 transition-colors"
+                            >
+                                Anladım, gizle
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Kurum & Sınıf Bilgileri — Merkezi Veri Girişi */}
+                <div className="mb-10">
+                    <InstitutionCard />
                 </div>
 
                 {/* Module Grid */}

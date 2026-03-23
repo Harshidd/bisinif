@@ -3,6 +3,7 @@ import GeneralInfoStep from '../../components/GeneralInfoStep'
 import SetupAndGradesStep from '../../components/SetupAndGradesStep'
 import AnalysisDashboard from '../../components/AnalysisDashboard'
 import WelcomeModal from '../../components/WelcomeModal'
+import InstitutionBanner from '../../components/InstitutionBanner'
 import { Button } from '../../components/ui/Button'
 import { RotateCcw, ChevronLeft, Home } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -14,6 +15,7 @@ import {
     clearProjectState,
     loadWelcomeFlag,
 } from '../../storage'
+import { loadInstitution } from '../../storage/institutionStore'
 
 // Varsayılan config
 const DEFAULT_CONFIG = {
@@ -75,12 +77,29 @@ const mapProfileToConfig = (profile) => ({
     principalName: profile.mudurAdi,
 })
 
+/**
+ * Merkezi kurum verisini config formatına dönüştür.
+ * Sadece dolu alanları içerir — boş olanlar mevcut değerleri ezmez.
+ */
+const mapInstitutionToConfig = (inst) => {
+    const map = {}
+    if (inst.il) map.city = inst.il
+    if (inst.ilce) map.district = inst.ilce
+    if (inst.okulAdi) map.schoolName = inst.okulAdi
+    if (inst.mudurAdi) map.principalName = inst.mudurAdi
+    if (inst.ogretmenAdi) map.teacherName = inst.ogretmenAdi
+    if (inst.sinif) map.gradeLevel = inst.sinif
+    if (inst.sube) map.classSection = inst.sube
+    return map
+}
+
 function ExamAnalysis() {
     const navigate = useNavigate()
     const [currentStep, setCurrentStep] = useState(1)
     const [config, setConfig] = useState(() => ({
         ...DEFAULT_CONFIG,
         ...mapProfileToConfig(PROFILE_DEFAULT),
+        ...mapInstitutionToConfig(loadInstitution()),
     }))
     const [questions, setQuestions] = useState([])
     const [students, setStudents] = useState([])
@@ -108,12 +127,14 @@ function ExamAnalysis() {
         }
 
         const safeProfile = normalizeProfile(profileMeta.data || PROFILE_DEFAULT)
+        const institutionDefaults = mapInstitutionToConfig(loadInstitution())
         const projectState = projectMeta.data || null
 
         if (projectState && projectState.config) {
             setConfig({
                 ...DEFAULT_CONFIG,
                 ...mapProfileToConfig(safeProfile),
+                ...institutionDefaults,
                 ...projectState.config,
             })
             setQuestions(projectState.questions || [])
@@ -126,6 +147,7 @@ function ExamAnalysis() {
         setConfig({
             ...DEFAULT_CONFIG,
             ...mapProfileToConfig(safeProfile),
+            ...institutionDefaults,
         })
         setQuestions([])
         setStudents([])
@@ -214,7 +236,8 @@ function ExamAnalysis() {
     const handleNewAnalysis = useCallback(() => {
         const latestProfileMeta = loadProfileMeta()
         const latestProfile = normalizeProfile(latestProfileMeta.data || PROFILE_DEFAULT)
-        setConfig({ ...DEFAULT_CONFIG, ...mapProfileToConfig(latestProfile) })
+        const latestInstitution = mapInstitutionToConfig(loadInstitution())
+        setConfig({ ...DEFAULT_CONFIG, ...mapProfileToConfig(latestProfile), ...latestInstitution })
         setQuestions([])
         setStudents([])
         setGrades({})
@@ -286,13 +309,11 @@ function ExamAnalysis() {
                                 </Button>
                             )}
 
-                            {/* Logo */}
-                            <h1
-                                className="text-lg font-bold text-gray-900 tracking-tight cursor-pointer"
+                            {/* Logo Placeholder (Metin kaldırıldı, e-okul tarzı sadeleştirme) */}
+                            <div 
+                                className="w-4 cursor-pointer" 
                                 onClick={() => currentStep > 1 && setCurrentStep(1)}
-                            >
-                                Sınav Analiz
-                            </h1>
+                            />
                         </div>
 
                         {/* Orta: Step Indicator */}
@@ -354,7 +375,10 @@ function ExamAnalysis() {
 
             {/* Main Content */}
             <main className="flex-1">
-                <div className="container mx-auto px-4 lg:px-8 py-8 md:py-12">
+                {/* Global Institution Banner */}
+                <InstitutionBanner />
+
+                <div className="container mx-auto px-4 lg:px-8 py-2 md:py-4">
                     {currentStep === 1 && (
                         <GeneralInfoStep
                             config={config}
