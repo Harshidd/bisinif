@@ -8,7 +8,6 @@ const Home = createLazyRoute(() => import('./pages/Home'))
 const ExamAnalysis = createLazyRoute(() => import('./modules/ExamAnalysis'))
 const ClassManagement = createLazyRoute(() => import('./modules/ClassManagement'))
 const Docs = createLazyRoute(() => import('./modules/Docs'))
-const DenemeOkut = createLazyRoute(() => import('./modules/DenemeOkut'))
 
 function App() {
   return (
@@ -26,8 +25,6 @@ function App() {
         {/* Docs Module (NEW) */}
         <Route path="/docs/*" element={<Docs />} />
 
-        {/* DenemeOkut Module (NEW) */}
-        <Route path="/deneme-okut/*" element={<DenemeOkut />} />
 
         {/* Redirects for legacy users if any specific subroutes existed, though mostly it was root */}
         <Route path="/analiz" element={<Navigate to="/exams" replace />} />

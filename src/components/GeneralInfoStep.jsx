@@ -24,6 +24,8 @@ const GeneralInfoStep = ({ config, onConfigChange, onNext }) => {
     return Object.keys(newErrors).length === 0
   }
 
+  const courseType = config.courseType || 'Genel Ders'
+
   const handleSubmit = () => {
     if (validateForm()) {
       onNext()
@@ -39,6 +41,28 @@ const GeneralInfoStep = ({ config, onConfigChange, onNext }) => {
     '10. Sınıf',
     '11. Sınıf',
     '12. Sınıf',
+  ]
+
+  const generalCourses = [
+    'Matematik',
+    'Fen Bilimleri',
+    'Sosyal Bilgiler',
+    'Tarih',
+    'Coğrafya',
+    'Fizik',
+    'Kimya',
+    'Biyoloji',
+    'Din Kültürü',
+    'Bilişim Teknolojileri',
+  ]
+
+  const languageCourses = [
+    'Türkçe',
+    'Türk Dili ve Edebiyatı',
+    'İngilizce',
+    'Almanca',
+    'Fransızca',
+    'Arapça',
   ]
 
   return (
@@ -109,19 +133,78 @@ const GeneralInfoStep = ({ config, onConfigChange, onNext }) => {
               </div>
             )}
 
+            <div className="space-y-3 col-span-1 md:col-span-2">
+              <Label className="text-gray-600 font-medium">Ders Türü</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div 
+                  onClick={() => onConfigChange({ courseType: 'Genel Ders', courseName: '' })}
+                  className={`relative flex cursor-pointer rounded-xl border p-4 shadow-sm transition-all focus:outline-none ${courseType === 'Genel Ders' ? 'border-blue-500 bg-blue-50/50 ring-1 ring-blue-500' : 'border-gray-200 bg-white hover:bg-gray-50'}`}
+                >
+                  <div className="flex w-full items-center justify-between">
+                    <div className="flex items-center">
+                      <div className={`flex shrink-0 items-center justify-center rounded-full w-10 h-10 mr-3 ${courseType === 'Genel Ders' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
+                        <Building2 className="w-5 h-5" />
+                      </div>
+                      <div className="text-sm">
+                        <p className={`font-semibold ${courseType === 'Genel Ders' ? 'text-blue-900' : 'text-gray-900'}`}>Genel Ders</p>
+                        <p className={`mt-0.5 ${courseType === 'Genel Ders' ? 'text-blue-700' : 'text-gray-500'}`}>Matematik, Fen, Sosyal vb.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div 
+                  onClick={() => onConfigChange({ courseType: 'Dil Dersi', courseName: '' })}
+                  className={`relative flex cursor-pointer rounded-xl border p-4 shadow-sm transition-all focus:outline-none ${courseType === 'Dil Dersi' ? 'border-indigo-500 bg-indigo-50/50 ring-1 ring-indigo-500' : 'border-gray-200 bg-white hover:bg-gray-50'}`}
+                >
+                  <div className="flex w-full items-center justify-between">
+                    <div className="flex items-center">
+                      <div className={`flex shrink-0 items-center justify-center rounded-full w-10 h-10 mr-3 ${courseType === 'Dil Dersi' ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-500'}`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-mic"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+                      </div>
+                      <div className="text-sm">
+                        <p className={`font-semibold ${courseType === 'Dil Dersi' ? 'text-indigo-900' : 'text-gray-900'}`}>Dil Dersi</p>
+                        <p className={`mt-0.5 ${courseType === 'Dil Dersi' ? 'text-indigo-700' : 'text-gray-500'}`}>Türkçe, Yabancı Dil, Edebiyat</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="courseName" className="text-gray-600">Ders Adı</Label>
-              <Input
-                id="courseName"
-                value={config.courseName ?? ''}
-                onChange={(e) => onConfigChange({ courseName: e.target.value })}
-                placeholder="Ders adını girin"
-                className={errors.courseName ? 'border-red-300 focus:border-red-400' : ''}
-              />
+              {courseType === 'Dil Dersi' ? (
+                <Select
+                  id="courseName"
+                  value={config.courseName ?? ''}
+                  onChange={(e) => onConfigChange({ courseName: e.target.value })}
+                  className={errors.courseName ? 'border-red-300 focus:border-red-400' : ''}
+                >
+                  <option value="">Dil Dersi Seçiniz...</option>
+                  {languageCourses.map(c => <option key={c} value={c}>{c}</option>)}
+                </Select>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <Input
+                    id="courseName"
+                    list="generalCourseList"
+                    value={config.courseName ?? ''}
+                    onChange={(e) => onConfigChange({ courseName: e.target.value })}
+                    placeholder="Ders adını girin veya seçin"
+                    className={errors.courseName ? 'border-red-300 focus:border-red-400' : ''}
+                  />
+                  <datalist id="generalCourseList">
+                    {generalCourses.map(c => <option key={c} value={c} />)}
+                  </datalist>
+                </div>
+              )}
               {errors.courseName && (
                 <p className="text-xs text-red-500">{errors.courseName}</p>
               )}
             </div>
+
+
 
             {!inst.ogretmenAdi && (
               <div className="space-y-2">

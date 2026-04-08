@@ -3,7 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Input } from './ui/Input'
 import { Button } from './ui/Button'
 import { Alert, AlertDescription } from './ui/Alert'
-import { AlertTriangle, AlertCircle, Zap, Trash2, Plus, LayoutGrid, List } from 'lucide-react'
+import { AlertTriangle, AlertCircle, Zap, Trash2, Plus, LayoutGrid, List, ClipboardList, X, Check } from 'lucide-react'
+import { getLanguageProfile } from '../core/languageProfiles'
 
 // Helper for integer-only distribution logic
 // Strictly follows integer arithmetic to guarantee totals
@@ -55,15 +56,22 @@ const distributeIntegerTotal = (total, maxScores) => {
   return scores
 }
 
-const GradingTable = ({ config, questions = [], students, grades: existingGrades, onGradesChange, onStudentUpdate, onDeleteStudent, onAddStudent, onNext, onBack, showNavigation = true, importerComponent }) => {
+const GradingTable = ({ config, questions = [], students, grades: existingGrades, onGradesChange, onStudentUpdate, onDeleteStudent, onAddStudent, onClearStudentList, onResetGrades, onNewAnalysis, onNext, onBack, showNavigation = true, importerComponent }) => {
   const [grades, setGrades] = useState({})
   const [warnings, setWarnings] = useState({})
   const [totalInputWarnings, setTotalInputWarnings] = useState({})
   const [totalInputValues, setTotalInputValues] = useState({})
   const [viewMode, setViewMode] = useState('table') // 'table' or 'card'
+  const [showClearMenu, setShowClearMenu] = useState(false)
+  const [remedialStudent, setRemedialStudent] = useState(null)
 
-  const maxTotalScore = questions.reduce((sum, question) => sum + (Number(question.maxScore) || 0), 0) || 0
-  const generalPassingScore = config.generalPassingScore ?? 50
+  const isLanguage = config?.courseType === 'Dil Dersi'
+  const langProfile = isLanguage ? getLanguageProfile(config.courseType, config.courseName) : null
+  
+  const displayQuestions = questions
+  const maxWrittenScore = displayQuestions.reduce((sum, q) => sum + (Number(q.maxScore) || 0), 0) || 100
+  const maxTotalScore = 100
+  const generalPassingScore = config?.generalPassingScore ?? 50
 
   useEffect(() => {
     if (existingGrades && Object.keys(existingGrades).length > 0) {
@@ -76,23 +84,47 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
       if (!initialGrades[student.id]) {
         initialGrades[student.id] = {}
       }
-      questions.forEach((question) => {
+      displayQuestions.forEach((question) => {
         const key = question.qNo
         if (initialGrades[student.id][key] === undefined) {
           initialGrades[student.id][key] = ''
         }
       })
+      if (config?.courseType === 'Dil Dersi') {
+        if (initialGrades[student.id]['__dinleme'] === undefined) {
+            initialGrades[student.id]['__dinleme'] = ''
+        }
+        if (initialGrades[student.id]['__konusma'] === undefined) {
+            initialGrades[student.id]['__konusma'] = ''
+        }
+      }
     })
     setGrades(initialGrades)
-  }, [students, questions, existingGrades])
-
-  const calculateTotal = (studentId) => {
+  }, [students, displayQuestions, existingGrades, config?.courseType])
+  const calculateWrittenTotal = (studentId) => {
     if (!grades[studentId]) return 0
-    return questions.reduce((sum, question) => {
+    return displayQuestions.reduce((sum, question) => {
       const val = grades[studentId]?.[question.qNo]
       const num = Number(val)
       return sum + (Number.isFinite(num) ? num : 0)
     }, 0)
+  }
+
+  const calculateTotal = (studentId) => {
+    if (!grades[studentId]) return 0
+    const writtenTotal = calculateWrittenTotal(studentId)
+    
+    if (isLanguage) {
+      // Normalize written total to 100 before weighting
+      const writtenNormalized = maxWrittenScore > 0 ? (writtenTotal / maxWrittenScore) * 100 : 0
+      const d = Number(grades[studentId]?.__dinleme) || 0
+      const k = Number(grades[studentId]?.__konusma) || 0
+      
+      const w = langProfile.weights
+      return Math.round(writtenNormalized * w.yazili + d * w.dinleme + k * w.konusma)
+    }
+    
+    return writtenTotal
   }
 
   const classAverage = students.length > 0
@@ -184,13 +216,13 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
     if (Number.isNaN(numValue)) numValue = 0
     if (numValue < 0) numValue = 0
 
-    const maxScores = questions.map(q => q.maxScore)
+    const maxScores = displayQuestions.map(q => q.maxScore)
     const distributedScores = distributeIntegerTotal(numValue, maxScores)
 
     const newGrades = { ...grades }
     if (!newGrades[studentId]) newGrades[studentId] = {}
 
-    questions.forEach((question, index) => {
+    displayQuestions.forEach((question, index) => {
       newGrades[studentId][question.qNo] = distributedScores[index]
     })
 
@@ -229,7 +261,7 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
     const newGrades = {}
     students.forEach((student) => {
       newGrades[student.id] = {}
-      questions.forEach((question) => {
+      displayQuestions.forEach((question) => {
         const maxScore = Number(question.maxScore) || 0
         newGrades[student.id][question.qNo] = maxScore
       })
@@ -252,10 +284,16 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
 
   const allGradesFilled = () => {
     return students.every((student) => {
-      return questions.every((question) => {
+      const writtenFilled = displayQuestions.every((question) => {
         const grade = grades[student.id]?.[question.qNo]
         return grade !== '' && grade !== undefined
       })
+      if (!isLanguage) return writtenFilled
+      
+      const d = grades[student.id]?.__dinleme
+      const k = grades[student.id]?.__konusma
+      const skillsFilled = (d !== '' && d !== undefined) && (k !== '' && k !== undefined)
+      return writtenFilled && skillsFilled
     })
   }
 
@@ -269,20 +307,30 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
   const getEmptyInputCount = () => {
     let count = 0
     students.forEach((student) => {
-      questions.forEach((question) => {
+      displayQuestions.forEach((question) => {
         const grade = grades[student.id]?.[question.qNo]
         if (grade === '' || grade === undefined) count++
       })
+      if (isLanguage) {
+        if (grades[student.id]?.__dinleme === '' || grades[student.id]?.__dinleme === undefined) count++
+        if (grades[student.id]?.__konusma === '' || grades[student.id]?.__konusma === undefined) count++
+      }
     })
     return count
   }
 
   const getFilledStudentCount = () => {
     return students.filter((student) => {
-      return questions.every((question) => {
+      const writtenFilled = displayQuestions.every((question) => {
         const grade = grades[student.id]?.[question.qNo]
         return grade !== '' && grade !== undefined
       })
+      if (!isLanguage) return writtenFilled
+      
+      const d = grades[student.id]?.__dinleme
+      const k = grades[student.id]?.__konusma
+      const skillsFilled = (d !== '' && d !== undefined) && (k !== '' && k !== undefined)
+      return writtenFilled && skillsFilled
     }).length
   }
 
@@ -355,6 +403,73 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
               <span className="hidden sm:inline">Tümüne Tam Puan</span>
               <span className="sm:hidden">Tam Puan</span>
             </Button>
+
+            {students.length > 0 && (
+              <div className="relative">
+                <Button
+                  onClick={() => setShowClearMenu(!showClearMenu)}
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs font-semibold border-red-200 text-red-600 hover:bg-red-50 bg-white shadow-sm shrink-0"
+                >
+                  <Trash2 className="w-3.5 h-3.5 sm:mr-1.5" />
+                  <span className="hidden sm:inline">Temizle & Sıfırla</span>
+                  <span className="sm:hidden">Temizle</span>
+                </Button>
+
+                {showClearMenu && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-[90]" 
+                      onClick={() => setShowClearMenu(false)}
+                    />
+                    <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-slate-200 shadow-xl rounded-xl z-[100] overflow-hidden flex flex-col p-1 animate-in fade-in zoom-in-95 duration-100">
+                      <button 
+                        onClick={() => { 
+                          if (window.confirm('Sadece girilen notlar silinecek. Emin misiniz?')) { 
+                            onResetGrades && onResetGrades(); 
+                            setShowClearMenu(false); 
+                          }
+                        }} 
+                        className="text-left px-3 py-2.5 text-xs text-slate-700 hover:bg-slate-50 font-medium rounded-md w-full"
+                      >
+                        Sadece Notları Temizle
+                      </button>
+                      
+                      {onClearStudentList && (
+                        <button 
+                          onClick={() => { 
+                            if (window.confirm('Tüm öğrenci listesi ve girilen notlar silinecek. Sınav kurulumu korunacaktır. Emin misiniz?')) { 
+                              onClearStudentList(); 
+                              setShowClearMenu(false); 
+                            }
+                          }} 
+                          className="text-left px-3 py-2.5 text-xs text-slate-700 hover:bg-slate-50 font-medium rounded-md w-full"
+                        >
+                          Sınıf Listesini Temizle
+                        </button>
+                      )}
+                      
+                      <div className="h-px bg-slate-100 my-1"></div>
+                      
+                      {onNewAnalysis && (
+                        <button 
+                          onClick={() => { 
+                            if (window.confirm('TÜM çalışma (sınav ayarları, liste, notlar) sıfırlanacak. Başa dönülecek. Emin misiniz?')) { 
+                              onNewAnalysis(); 
+                              setShowClearMenu(false); 
+                            }
+                          }} 
+                          className="text-left px-3 py-2.5 text-xs text-red-600 hover:bg-red-50 font-bold rounded-md w-full"
+                        >
+                          Tüm Çalışmayı Sıfırla
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -385,10 +500,10 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
                     <th className="sticky z-50 bg-white px-2 py-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wide w-[5rem] min-w-[5rem] max-w-[5rem] shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" style={{ left: '3rem' }}>No</th>
                     <th className="sticky z-50 bg-white px-2 py-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wide w-44 min-w-[11rem] max-w-[11rem] border-r border-gray-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]" style={{ left: '8rem' }}>Ad Soyad</th>
 
-                    {questions.map((question) => {
-                      const outcomeIndex = question.outcomeId !== '' ? Number(question.outcomeId) : NaN
+                    {displayQuestions.map((question) => {
+                      const outcomeIndex = question.outcomeId !== '' && question.outcomeId !== undefined ? Number(question.outcomeId) : NaN
                       const outcomeLabel = Number.isFinite(outcomeIndex)
-                        ? config.outcomes?.[outcomeIndex]
+                        ? config?.outcomes?.[outcomeIndex]
                         : ''
                       return (
                         <th
@@ -396,17 +511,36 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
                           className="px-2 py-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wide text-center w-14 min-w-[3.5rem]"
                           title={outcomeLabel || ''}
                         >
-                          <div>Q{question.qNo}</div>
+                          <div>{question.label || `Q${question.qNo}`}</div>
                           <div className="text-[9px] font-normal text-gray-400 normal-case">({question.maxScore})</div>
                         </th>
                       )
                     })}
 
-                    <th className="px-1 py-2 text-center text-[11px] font-semibold text-amber-700 uppercase tracking-wider w-16 min-w-[4rem] bg-amber-50">
-                      <div>Toplam</div>
-                      <div className="text-[9px] font-normal text-amber-600 normal-case">(max: {maxTotalScore})</div>
+                    <th className="px-1 py-2 text-center text-[11px] font-semibold text-slate-700 uppercase tracking-wider w-16 min-w-[4rem] bg-slate-50 border-x border-slate-100">
+                      <div>Yazılı</div>
+                      <div className="text-[9px] font-normal text-slate-500 normal-case">(Top: {maxWrittenScore})</div>
                     </th>
-                    <th className="px-1 py-2 text-center text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-10 min-w-[2.5rem] bg-gray-50">Sil</th>
+
+                    {isLanguage && (
+                      <>
+                        <th className="px-1 py-2 text-center text-[11px] font-semibold text-blue-700 uppercase tracking-wider w-16 min-w-[4rem] bg-blue-50/50 border-r border-slate-100">
+                          <div>Dinleme</div>
+                          <div className="text-[9px] font-normal text-blue-500 normal-case">(max: 100)</div>
+                        </th>
+                        <th className="px-1 py-2 text-center text-[11px] font-semibold text-indigo-700 uppercase tracking-wider w-16 min-w-[4rem] bg-indigo-50/50 border-r border-slate-100">
+                          <div>Konuşma</div>
+                          <div className="text-[9px] font-normal text-indigo-500 normal-case">(max: 100)</div>
+                        </th>
+                      </>
+                    )}
+
+                    <th className="px-1 py-2 text-center text-[11px] font-semibold text-amber-700 uppercase tracking-wider w-16 min-w-[4rem] bg-amber-50">
+                      <div>{isLanguage ? 'Final' : 'Toplam'}</div>
+                      <div className="text-[9px] font-normal text-amber-600 normal-case">(max: 100)</div>
+                    </th>
+                    <th className="px-1 py-2 text-center text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-12 min-w-[3rem] bg-gray-50 border-l border-gray-100">Telafi</th>
+                    <th className="px-1 py-2 text-center text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-10 min-w-[2.5rem] bg-gray-50 border-l border-gray-100">Sil</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -438,7 +572,7 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
                           />
                         </td>
 
-                        {questions.map((question) => {
+                        {displayQuestions.map((question) => {
                           const hasWarning = warnings[`${student.id}-${question.qNo}`]
                           const maxScoreForOutcome = question.maxScore
 
@@ -450,7 +584,7 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
                                   max={maxScoreForOutcome}
                                   step="1"
                                   name={`q-${student.id}-${question.qNo}`}
-                                  aria-label={`Soru ${question.qNo} notu, ${student.name}`}
+                                  aria-label={`${question.label || 'Soru ' + question.qNo} notu, ${student.name}`}
                                   value={grades[student.id]?.[question.qNo] ?? ''}
                                   onChange={(e) =>
                                     handleGradeChange(student.id, question.qNo, maxScoreForOutcome, e.target.value)
@@ -462,33 +596,112 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
                           )
                         })}
 
-                        <td className="px-1 py-1 relative bg-amber-50/50 text-center">
-                          <Input
-                            type="number"
-                            min="0"
-                            max={maxTotalScore}
-                            step="1"
-                            name={`total-${student.id}`}
-                            aria-label={`Toplam not, ${student.name}`}
-                            value={displayTotal}
-                            onChange={(e) => handleTotalInputChange(student.id, e.target.value)}
-                            onBlur={() => handleTotalDistribute(student.id)}
-                            onKeyDown={(e) => handleTotalKeyDown(student.id, e)}
-                            className={`text-center text-[13px] w-14 h-6 font-bold mx-auto px-1 ${hasTotalWarning
-                              ? 'border-red-500 bg-red-100 text-red-700 animate-pulse'
-                              : 'border-amber-200 focus:border-amber-500 text-amber-900 bg-white shadow-sm'
-                              }`}
-                            title="Değer yazıp Enter'a basın veya kutudan çıkın"
-                          />
-                          {hasTotalWarning && (
-                            <div className="absolute -top-8 left-0 right-0 bg-red-600 text-white text-xs px-2 py-1 rounded z-10 whitespace-nowrap text-center">
-                              {hasTotalWarning}
-                            </div>
+                        <td className="px-1 py-1 relative text-center bg-slate-50 font-bold text-slate-700 border-x border-slate-100 text-[13px]">
+                          {isLanguage ? (
+                            <>
+                              <Input
+                                type="number"
+                                min="0"
+                                max={maxWrittenScore}
+                                step="1"
+                                name={`written-total-${student.id}`}
+                                aria-label={`Yazılı toplam not, ${student.name}`}
+                                value={totalInputValues[student.id] !== undefined ? totalInputValues[student.id] : calculateWrittenTotal(student.id)}
+                                onChange={(e) => handleTotalInputChange(student.id, e.target.value)}
+                                onBlur={() => handleTotalDistribute(student.id)}
+                                onKeyDown={(e) => handleTotalKeyDown(student.id, e)}
+                                className={`text-center text-[13px] w-14 h-6 font-bold mx-auto px-1 ${totalInputWarnings[student.id]
+                                  ? 'border-red-500 bg-red-100 text-red-700 animate-pulse'
+                                  : 'border-slate-200 focus:border-slate-400 bg-transparent text-slate-700 hover:border-slate-300 transition-colors'
+                                  }`}
+                                title="Yazılı toplamı girip Enter'a basın"
+                              />
+                              {totalInputWarnings[student.id] && (
+                                <div className="absolute -top-8 left-0 right-0 bg-red-600 text-white text-xs px-2 py-1 rounded z-10 whitespace-nowrap text-center shadow-md">
+                                  {totalInputWarnings[student.id]}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            calculateWrittenTotal(student.id)
                           )}
                         </td>
 
+                        {isLanguage && (
+                          <>
+                            <td className="px-1 py-1 text-center bg-blue-50/20 border-r border-slate-100">
+                              <Input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={grades[student.id]?.__dinleme ?? ''}
+                                onChange={(e) => handleGradeChange(student.id, '__dinleme', 100, e.target.value)}
+                                className="text-center text-[13px] font-medium w-12 h-6 px-1 border-transparent focus:border-blue-400 bg-transparent text-blue-700"
+                              />
+                            </td>
+                            <td className="px-1 py-1 text-center bg-indigo-50/20 border-r border-slate-100">
+                              <Input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={grades[student.id]?.__konusma ?? ''}
+                                onChange={(e) => handleGradeChange(student.id, '__konusma', 100, e.target.value)}
+                                className="text-center text-[13px] font-medium w-12 h-6 px-1 border-transparent focus:border-indigo-400 bg-transparent text-indigo-700"
+                              />
+                            </td>
+                          </>
+                        )}
+
+                        <td className="px-1 py-1 relative bg-amber-50/50 text-center">
+                          {isLanguage ? (
+                            <span className="text-center text-[14px] font-bold text-amber-900 block w-full px-1">
+                              {calculateTotal(student.id)}
+                            </span>
+                          ) : (
+                            <>
+                              <Input
+                                type="number"
+                                min="0"
+                                max={maxTotalScore}
+                                step="1"
+                                name={`total-${student.id}`}
+                                aria-label={`Toplam not, ${student.name}`}
+                                value={displayTotal}
+                                onChange={(e) => handleTotalInputChange(student.id, e.target.value)}
+                                onBlur={() => handleTotalDistribute(student.id)}
+                                onKeyDown={(e) => handleTotalKeyDown(student.id, e)}
+                                className={`text-center text-[13px] w-14 h-6 font-bold mx-auto px-1 ${hasTotalWarning
+                                  ? 'border-red-500 bg-red-100 text-red-700 animate-pulse'
+                                  : 'border-amber-200 focus:border-amber-500 text-amber-900 bg-white shadow-sm'
+                                  }`}
+                                title="Değer yazıp Enter'a basın veya kutudan çıkın"
+                              />
+                              {hasTotalWarning && (
+                                <div className="absolute -top-8 left-0 right-0 bg-red-600 text-white text-xs px-2 py-1 rounded z-10 whitespace-nowrap text-center shadow-md">
+                                  {hasTotalWarning}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </td>
+
+                        {/* Telafi Butonu */}
+                        <td className="px-1 py-1 text-center bg-gray-50/50 border-l border-slate-100">
+                          <div className="flex justify-center px-1">
+                            <button
+                              type="button"
+                              onClick={() => setRemedialStudent(student)}
+                              className={`flex items-center justify-center gap-1 w-full max-w-[4rem] px-1 py-1 text-[10px] font-medium rounded transition-all border ${(grades[student.id]?.__telafiSecimleri?.length > 0 || grades[student.id]?.__telafiNotu) ? 'border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100' : 'border-slate-200 bg-white text-slate-500 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 shadow-sm'}`}
+                              title={((grades[student.id]?.__telafiSecimleri?.length > 0 || grades[student.id]?.__telafiNotu) ? 'Telafi notlarını düzenle' : 'Telafi çalışması ekle')}
+                            >
+                              <ClipboardList className="w-3.5 h-3.5 shrink-0" />
+                              <span className="truncate">{(grades[student.id]?.__telafiSecimleri?.length > 0 || grades[student.id]?.__telafiNotu) ? 'Notlar' : 'Ekle'}</span>
+                            </button>
+                          </div>
+                        </td>
+
                         {/* Silme Butonu */}
-                        <td className="px-1 py-1 text-center bg-gray-50/50">
+                        <td className="px-1 py-1 text-center bg-gray-50/50 border-l border-slate-100">
                           <button
                             type="button"
                             onClick={() => onDeleteStudent?.(student.id)}
@@ -503,15 +716,15 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
                   })}
                   {/* Yeni Öğrenci Ekle Satırı */}
                   {onAddStudent && (
-                    <tr className="bg-blue-50/50 hover:bg-blue-100/50 transition-colors">
-                      <td colSpan={questions.length + 5} className="px-4 py-2 text-center">
+                    <tr className="bg-slate-50/50 hover:bg-blue-50 transition-colors border-t border-slate-100">
+                      <td colSpan={displayQuestions.length + 5} className="px-4 py-3 text-center">
                         <button
                           type="button"
                           onClick={onAddStudent}
-                          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-colors"
+                          className="inline-flex items-center gap-2 px-6 py-2 text-sm font-semibold text-blue-600 hover:text-blue-700 bg-white border border-blue-200 rounded-full shadow-sm hover:shadow-md transition-all active:scale-95"
                         >
                           <Plus className="w-4 h-4" />
-                          Yeni Öğrenci Ekle
+                          Öğrenci Ekle
                         </button>
                       </td>
                     </tr>
@@ -606,14 +819,14 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
-                      {questions.map((question) => {
+                      {displayQuestions.map((question) => {
                         const hasWarning = warnings[`${student.id}-${question.qNo}`]
                         const maxScoreForOutcome = question.maxScore
 
                         return (
                           <div key={question.qNo} className="space-y-1">
                             <div className="flex justify-between text-xs">
-                              <span className="font-medium">Q{question.qNo}</span>
+                              <span className="font-medium">{question.label || `Q${question.qNo}`}</span>
                               <span className="text-gray-400">({maxScoreForOutcome})</span>
                             </div>
                             <Input
@@ -622,7 +835,7 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
                               max={maxScoreForOutcome}
                               step="1"
                               name={`q-${student.id}-${question.qNo}-mobile`}
-                              aria-label={`Soru ${question.qNo} notu, ${student.name}`}
+                              aria-label={`${question.label || 'Soru ' + question.qNo} notu, ${student.name}`}
                               value={grades[student.id]?.[question.qNo] ?? ''}
                               onChange={(e) =>
                                 handleGradeChange(student.id, question.qNo, maxScoreForOutcome, e.target.value)
@@ -683,6 +896,95 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
               </AlertDescription>
             </Alert>
           )}
+        </>
+      )}
+
+      {/* Remedial Work (Telafi) Modal */}
+      {remedialStudent && (
+        <>
+          <div className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-[100]" onClick={() => setRemedialStudent(null)} />
+          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-lg bg-white rounded-xl shadow-2xl z-[110] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                  <ClipboardList className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 leading-tight">Telafi Çalışmaları</h3>
+                  <p className="text-xs text-slate-500">{remedialStudent.name} ({remedialStudent.no || remedialStudent.studentNumber})</p>
+                </div>
+              </div>
+              <button onClick={() => setRemedialStudent(null)} className="p-2 text-slate-400 hover:text-red-500 rounded-full transition-colors bg-white shadow-sm border border-slate-200 hover:border-red-200">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="p-5 overflow-y-auto max-h-[60vh] space-y-5">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Uygulanan Aksiyonlar</label>
+                <div className="grid gap-2">
+                  {[
+                    'Ek konu anlatımı yapıldı',
+                    'Ödevlendirme yapıldı',
+                    'Proje görevi verildi',
+                    'Araştırma görevi verildi',
+                    'Teknolojik araçlarla tekrar yapıldı',
+                    'Birebir çalışma yapıldı',
+                    'Veli bilgilendirildi',
+                    'Ek kaynak verildi'
+                  ].map(option => {
+                    const isSelected = (grades[remedialStudent.id]?.__telafiSecimleri || []).includes(option);
+                    return (
+                      <label key={option} className={`flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer transition-all duration-200 ${isSelected ? 'bg-indigo-50 border-indigo-300 shadow-sm' : 'bg-white border-slate-200 hover:border-indigo-200 hover:bg-slate-50'}`}>
+                        <div className="relative flex items-center justify-center shrink-0">
+                          <input
+                            type="checkbox"
+                            className="peer absolute opacity-0 w-0 h-0"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              const current = grades[remedialStudent.id]?.__telafiSecimleri || [];
+                              const next = e.target.checked ? [...current, option] : current.filter(x => x !== option);
+                              onGradesChange({
+                                ...grades,
+                                [remedialStudent.id]: {
+                                  ...grades[remedialStudent.id],
+                                  __telafiSecimleri: next
+                                }
+                              });
+                            }}
+                          />
+                          <div className={`w-5 h-5 rounded flex items-center justify-center transition-colors border ${isSelected ? 'bg-indigo-600 border-indigo-600 shadow-inner' : 'bg-white border-slate-300 peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-500 peer-focus-visible:ring-offset-2'}`}>
+                            {isSelected && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
+                          </div>
+                        </div>
+                        <span className={`text-sm select-none transition-colors ${isSelected ? 'text-indigo-950 font-semibold' : 'text-slate-700 font-medium'}`}>{option}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Öğretmen Notu / Detaylar (Opsiyonel)</label>
+                <textarea
+                  className="w-full min-h-[100px] p-3 text-sm rounded-lg border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-400"
+                  placeholder="Yapılan özel telafi çalışmalarına dair ek notlar giriniz..."
+                  value={grades[remedialStudent.id]?.__telafiNotu || ''}
+                  onChange={(e) => onGradesChange({
+                    ...grades,
+                    [remedialStudent.id]: {
+                      ...grades[remedialStudent.id],
+                      __telafiNotu: e.target.value
+                    }
+                  })}
+                />
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-100 bg-slate-50 text-right">
+              <Button onClick={() => setRemedialStudent(null)} className="px-6">Bitti</Button>
+            </div>
+          </div>
         </>
       )}
 

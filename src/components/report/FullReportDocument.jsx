@@ -996,7 +996,7 @@ export const OutcomeSuccessPage = ({ analysis, config }) => {
             ) : (
                 <View style={{ marginTop: 10, padding: 10, backgroundColor: "#F0FDF4", borderRadius: 6, borderWidth: 1, borderColor: colors.success + "30", alignItems: "center" }}>
                     <Text style={{ fontFamily: "Roboto", fontSize: 10, color: colors.success, fontWeight: "bold" }}>
-                        🎉 Tebrikler! Tüm kazanımlarda tam başarı sağlandı.
+                        Tebrikler! Tüm kazanımlarda tam başarı sağlandı.
                     </Text>
                     <Text style={{ fontFamily: "Roboto", fontSize: 8, color: colors.muted, marginTop: 2 }}>
                         Telafi gerektiren öğrenci bulunmamaktadır.

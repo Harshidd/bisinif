@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import GeneralInfoStep from '../../components/GeneralInfoStep'
 import SetupAndGradesStep from '../../components/SetupAndGradesStep'
 import AnalysisDashboard from '../../components/AnalysisDashboard'
+import { getLanguageProfile } from '../../core/languageProfiles'
 import WelcomeModal from '../../components/WelcomeModal'
 import InstitutionBanner from '../../components/InstitutionBanner'
 import { Button } from '../../components/ui/Button'
@@ -157,19 +158,9 @@ function ExamAnalysis() {
         return undefined
     }, [])
 
-    // Sayfa kapatıldığında tüm verileri temizle
-    useEffect(() => {
-        const handleBeforeUnload = () => {
-            // Not: Artık router içindeyiz, bu logic sayfa yenilemede çalışır
-            clearProjectState()
-        }
-
-        window.addEventListener('beforeunload', handleBeforeUnload)
-
-        return () => {
-            window.removeEventListener('beforeunload', handleBeforeUnload)
-        }
-    }, [])
+    // Otomatik kayıt zaten useEffect ile yapılıyor (debounced saveProjectState).
+    // beforeunload'da clearProjectState KALDIRILDI — böylece yarım kalan çalışma
+    // sayfa yenileme / kapatma sonrası da korunur ve kaldığı yerden devam edilir.
 
     const profileData = useMemo(() => ({
         il: toSafeString(config.city),
@@ -251,6 +242,10 @@ function ExamAnalysis() {
             setCurrentStep(currentStep - 1)
         }
     }, [currentStep])
+
+    const getAnalysisProps = () => {
+        return { config, questions, grades }
+    }
 
     const steps = [
         { number: 1, title: 'Genel Bilgiler' },
@@ -399,15 +394,16 @@ function ExamAnalysis() {
                             onConfigChange={handleConfigChange}
                             onGradesChange={handleGradesChange}
                             onNext={() => setCurrentStep(3)}
+                            onNewAnalysis={handleNewAnalysis}
                         />
                     )}
 
                     {currentStep === 3 && (
                         <AnalysisDashboard
-                            config={config}
-                            questions={questions}
+                            config={getAnalysisProps().config}
+                            questions={getAnalysisProps().questions}
                             students={students}
-                            grades={grades}
+                            grades={getAnalysisProps().grades}
                             onBack={handleBack}
                             onEditGrades={handleEditGrades}
                             onNewAnalysis={handleNewAnalysis}

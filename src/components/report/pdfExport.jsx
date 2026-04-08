@@ -13,68 +13,41 @@ import { loadInstitution } from '../../storage/institutionStore';
 // ============================================
 
 const generateSafeFileName = (config, reportType, studentName = null) => {
-    // Kurum bilgisini de hesaba katalım (Öncelikli)
     const inst = loadInstitution() || {};
     
     // Fallback logic
-    const school = (inst.okulAdi || config?.schoolName || '').trim();
+    const school = (inst.okulAdi || config?.schoolName || 'Okul').trim();
     
-    // Sadece rakamı almak için regex (ör: "5. Sınıf" -> "5")
-    const gradeMatch = (inst.sinif || config?.gradeLevel || '').match(/\d+/);
-    const grade = gradeMatch ? gradeMatch[0] : '';
-    
-    // "A Şubesi" -> "A"
+    // Class Info: "5" + "A" -> "5A"
+    const grade = (inst.sinif || config?.gradeLevel || '').replace(/\D/g, '');
     let section = (inst.sube || config?.classSection || '').trim();
-    if (section.toLowerCase().includes('şube')) {
-        section = section.split(' ')[0];
-    }
+    if (section.toLowerCase().includes('sube')) section = section.split(' ')[0];
+    const classInfo = grade || section ? `${grade}${section}` : 'Sinif';
     
-    const classInfo = grade || section ? `${grade}${section}` : '';
-    const course = (config?.courseName || '').trim();
-    const exam = (config?.examName || '').trim();
+    const course = (config?.courseName || 'Ders').trim();
+    const exam = (config?.examName || 'Sinav').trim();
     
-    // Bugünün tarihi: YYYY-MM-DD
+    // Date: YYYY-MM-DD
     const now = new Date();
     const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     
-    const parts = [];
-    if (school) parts.push(school);
-    if (classInfo) parts.push(classInfo);
-    if (course) parts.push(course);
-    if (exam) parts.push(exam);
+    const parts = [school, classInfo, course, exam, reportType || 'Rapor'];
     if (studentName) parts.push(studentName);
-    if (reportType) parts.push(reportType);
     parts.push(dateStr);
     
-    // Birleştir
-    let filename = parts.join('_');
-    
-    // Türkçe karakter dönüşümü
+    // Join and Clean
     const charMap = {
-        'ç': 'c', 'Ç': 'C',
-        'ğ': 'g', 'Ğ': 'G',
-        'ı': 'i', 'İ': 'I',
-        'ö': 'o', 'Ö': 'O',
-        'ş': 's', 'Ş': 'S',
-        'ü': 'u', 'Ü': 'U'
+        'ç': 'c', 'Ç': 'C', 'ğ': 'g', 'Ğ': 'G', 'ı': 'i', 'İ': 'I',
+        'ö': 'o', 'Ö': 'O', 'ş': 's', 'Ş': 'S', 'ü': 'u', 'Ü': 'U'
     };
     
-    filename = filename.replace(/[çÇğĞıİöÖşŞüÜ]/g, char => charMap[char]);
-    
-    // Boşlukları ve geçersiz karakterleri alt çizgi yap
-    filename = filename.replace(/[^a-zA-Z0-9_\-]/g, '_');
-    
-    // Birden fazla alt çizgiyi teke indir ve baş/sondaki alt çizgileri sil
-    filename = filename.replace(/_+/g, '_').replace(/^_|_$/g, '');
-    
-    // Çok uzarsa kes (Max 80 karakter civarı, ama tarih ve tip kısımlarını korumak daha iyi)
-    // Şimdilik sadece Windows vb limitlerine takılmaması için 150'den keselim
-    if (filename.length > 150) {
-        filename = filename.substring(0, 150).replace(/_+$/, '');
-    }
-    
-    // Fallback
-    return `${filename}.pdf`;
+    let filename = parts.join('_')
+        .replace(/[çÇğĞıİöÖşŞüÜ]/g, char => charMap[char])
+        .replace(/[^a-zA-Z0-9]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '');
+        
+    return `${filename.substring(0, 150)}.pdf`;
 };
 
 const downloadBlob = (blob, filename) => {
