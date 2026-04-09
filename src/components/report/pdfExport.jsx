@@ -27,13 +27,8 @@ const generateSafeFileName = (config, reportType, studentName = null) => {
     const course = (config?.courseName || 'Ders').trim();
     const exam = (config?.examName || 'Sinav').trim();
     
-    // Date: YYYY-MM-DD
-    const now = new Date();
-    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    
     const parts = [school, classInfo, course, exam, reportType || 'Rapor'];
     if (studentName) parts.push(studentName);
-    parts.push(dateStr);
     
     // Join and Clean
     const charMap = {
