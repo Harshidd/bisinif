@@ -260,6 +260,27 @@ export const StudentReportSection = ({ analysis, config }) => {
                                         <div className="text-xs text-slate-500 mt-1">Sınıf Sırası</div>
                                     </div>
                                 </div>
+                                {config?.courseType === 'Dil Dersi' && (
+                                    <div className="mt-3 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="text-xs font-semibold text-indigo-800">Beceri Dağılımı</span>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <div className="text-center">
+                                                <div className="text-lg font-bold text-indigo-900">{selectedStudent?.writtenTotal ?? 0}</div>
+                                                <div className="text-[10px] text-indigo-600">Yazılı</div>
+                                            </div>
+                                            <div className="text-center border-l border-indigo-200/50 pl-2">
+                                                <div className="text-lg font-bold text-indigo-900">{selectedStudent?.dinleme ?? 0}</div>
+                                                <div className="text-[10px] text-indigo-600">Dinleme</div>
+                                            </div>
+                                            <div className="text-center border-l border-indigo-200/50 pl-2">
+                                                <div className="text-lg font-bold text-indigo-900">{selectedStudent?.konusma ?? 0}</div>
+                                                <div className="text-[10px] text-indigo-600">Konuşma</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <Alert className="bg-blue-50 border-blue-100">
@@ -267,6 +288,28 @@ export const StudentReportSection = ({ analysis, config }) => {
                                     "{studentComment}"
                                 </AlertDescription>
                             </Alert>
+
+                            {(selectedStudent?.telafiSecimleri?.length > 0 || selectedStudent?.telafiNotu) && (
+                                <div className="bg-amber-50/50 rounded-xl p-4 border border-amber-200">
+                                    <h5 className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-2 flex items-center gap-1.5 border-b border-amber-200/50 pb-2">
+                                        <Building2 className="w-3.5 h-3.5" /> Telafi Çalışmaları
+                                    </h5>
+                                    {selectedStudent?.telafiSecimleri?.length > 0 && (
+                                        <ul className="mb-2 space-y-1">
+                                            {selectedStudent.telafiSecimleri.map((item, idx) => (
+                                                <li key={idx} className="text-sm font-medium text-amber-900 flex items-start gap-1.5">
+                                                    <span className="text-amber-500 mt-0.5">•</span> {item}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                    {selectedStudent?.telafiNotu && (
+                                        <div className="text-sm text-amber-700 italic border-l-2 border-amber-300 pl-2 mt-2 break-words">
+                                            {selectedStudent.telafiNotu}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Middle Column: Chart */}

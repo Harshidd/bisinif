@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from './ui/Alert'
 import { AlertTriangle } from 'lucide-react'
 import StudentImporter from './StudentImporter'
 import GradingTable from './GradingTable'
+import { getLanguageProfile } from '../core/languageProfiles'
 
 const toNumber = (value) => {
   if (typeof value === 'number' && Number.isFinite(value)) return value
@@ -57,6 +58,7 @@ const SetupAndGradesStep = ({
   onConfigChange,
   onBack,
   onNext,
+  onNewAnalysis,
 }) => {
   const [outcomeTexts, setOutcomeTexts] = useState(config.outcomes || [])
   const [outcomeCount, setOutcomeCount] = useState((config.outcomes || []).length)
@@ -172,25 +174,37 @@ const SetupAndGradesStep = ({
     })
   }, [students, grades])
 
+  const isLanguage = config.courseType === 'Dil Dersi'
   const canAnalyze = students.length > 0 && questions.length > 0 && hasAnyGrade
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       
-      {/* UPPER PANEL: E-Okul Tarzı Sınav Kurulum Paneli */}
+      {/* UPPER PANEL: Sınav Kurulum Paneli — tüm ders türleri için aynı */}
       <div className="border border-slate-200 bg-white shadow-sm rounded-xl overflow-hidden">
         <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-2">
           <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
             <span className="w-2 h-6 bg-blue-600 rounded-sm"></span>
             Sınav Kurulumu & Parametreler
           </h2>
-          <div className="text-xs text-slate-500 font-medium px-3 py-1 bg-white border border-slate-200 rounded-full shadow-sm">
-            {config.courseName || 'Ders Seçilmedi'} • {config.examName || 'Sınav'} • {config.examDate ? new Date(config.examDate).toLocaleDateString('tr-TR') : ''}
+          <div className="flex items-center gap-2">
+            {isLanguage && (() => {
+              const lp = getLanguageProfile(config.courseType, config.courseName)
+              const w = lp?.weights || { yazili: 0.5, dinleme: 0.25, konusma: 0.25 }
+              return (
+                <span className="text-[10px] font-medium px-2 py-1 bg-blue-50 border border-blue-200 rounded-full text-blue-600">
+                  Yazılı %{Math.round(w.yazili * 100)} · Dinleme %{Math.round(w.dinleme * 100)} · Konuşma %{Math.round(w.konusma * 100)}
+                </span>
+              )
+            })()}
+            <div className="text-xs text-slate-500 font-medium px-3 py-1 bg-white border border-slate-200 rounded-full shadow-sm">
+              {config.courseName || 'Ders Seçilmedi'} • {config.examName || 'Sınav'} • {config.examDate ? new Date(config.examDate).toLocaleDateString('tr-TR') : ''}
+            </div>
           </div>
         </div>
-        
+
         <div className="p-4 grid grid-cols-1 md:grid-cols-4 gap-6 bg-white">
-          {/* Kolon 1: Soru ve Geçme Puanı */}
+          {/* Kolon 1: Soru Sayısı + Geçme Puanı */}
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="questionCount" className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Toplam Soru (N)</Label>
@@ -216,8 +230,8 @@ const SetupAndGradesStep = ({
               />
             </div>
           </div>
-          
-          {/* Kolon 2: Puanlama & Baraj */}
+
+          {/* Kolon 2: Puanlama Modu + Kazanım Barajı */}
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Puanlama Modu</Label>
@@ -390,6 +404,14 @@ const SetupAndGradesStep = ({
             delete nextGrades[studentId]
             onGradesChange(nextGrades)
           }}
+          onClearStudentList={() => {
+            onStudentsChange([])
+            onGradesChange({})
+          }}
+          onResetGrades={() => {
+            onGradesChange({})
+          }}
+          onNewAnalysis={onNewAnalysis}
           onAddStudent={() => {
             const newStudent = {
               id: Date.now(),

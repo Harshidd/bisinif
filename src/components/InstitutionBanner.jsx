@@ -1,22 +1,30 @@
 import React from 'react';
-import { Building2, MapPin, User, GraduationCap } from 'lucide-react';
+import { Building2, MapPin, User, GraduationCap, AlertTriangle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { loadInstitution } from '../storage/institutionStore';
+
+const CRITICAL_FIELDS = [
+    { key: 'okulAdi',     label: 'Okul Adı' },
+    { key: 'mudurAdi',    label: 'Müdür Adı' },
+    { key: 'ogretmenAdi', label: 'Öğretmen Adı' },
+    { key: 'sinif',       label: 'Sınıf' },
+];
 
 /**
  * Merkeze girilmiş kurum verilerini tüm modüllerin üst bilgisinde göstermek için
  * kullanılan ortak read-only gösterim bandı.
+ * Eksik kritik alan varsa sağ köşede mütevazı bir uyarı rozeti gösterir.
  */
 export default function InstitutionBanner() {
     const inst = loadInstitution();
-    
-    // Eğer temel bilgiler girilmediyse bandı göstermeyebiliriz veya sade gösterebiliriz.
-    // Ancak her modülde bağlam vermek istendiği için gösterelim.
+
     if (!inst || (!inst.okulAdi && !inst.il && !inst.sinif)) {
         return null; // Hiç veri yoksa gösterme
     }
 
     const location = [inst.il, inst.ilce].filter(Boolean).join(' / ');
     const classInfo = [inst.sinif, inst.sube ? `${inst.sube} Şubesi` : ''].filter(Boolean).join(' - ');
+    const missingFields = CRITICAL_FIELDS.filter((f) => !inst[f.key]?.trim());
 
     return (
         <div className="bg-slate-50 border-b border-gray-300 px-4 py-1 sm:px-6 lg:px-8 mb-4 shadow-sm flex items-center justify-between gap-4 min-h-[40px]">
@@ -36,7 +44,7 @@ export default function InstitutionBanner() {
                 </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
                 {(inst.mudurAdi || inst.ogretmenAdi) && (
                     <div className="hidden md:flex items-center gap-1.5 text-xs text-slate-600">
                         <User className="w-3 h-3 text-slate-400" />
@@ -51,6 +59,19 @@ export default function InstitutionBanner() {
                         <GraduationCap className="w-3.5 h-3.5 text-slate-400" />
                         <span className="font-bold">{classInfo}</span>
                     </div>
+                )}
+
+                {/* Eksik alan rozeti — kritik veri eksikse ana sayfaya yönlendir */}
+                {missingFields.length > 0 && (
+                    <Link
+                        to="/"
+                        className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full hover:bg-amber-100 transition-colors shrink-0"
+                        title={`Eksik: ${missingFields.map(f => f.label).join(', ')}`}
+                    >
+                        <AlertTriangle className="w-3 h-3" />
+                        <span className="hidden sm:inline">Kurum bilgileri eksik</span>
+                        <span className="sm:hidden">{missingFields.length} eksik</span>
+                    </Link>
                 )}
             </div>
         </div>

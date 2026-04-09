@@ -205,13 +205,81 @@ const StudentImporter = ({
         if (!pasteText.trim()) { setError('Lütfen liste yapıştırın.'); return }
         try {
             const lines = pasteText.trim().split('\n')
-            const rows = lines.map(line => {
-                if (line.includes('\t')) return line.split('\t').map(c => c.trim())
-                return line.split(/\s{2,}/).map(c => c.trim())
-            })
-            const result = parseTableData(rows, hasHeader)
-            if (result.error) { setError(result.error); return }
-            handleStudentsFound(result.students, 'Pano Verisi')
+            const parsedStudents = []
+            let addedCount = 0
+            const seenStudents = new Set()
+
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i].trim()
+                if (!line) continue
+
+                // 1) Başlık, açıklama ve çöp satırları tamamen reddet
+                const lowerLine = line.toLowerCase()
+                const junkKeywords = [
+                    'okul no', 'ad soyad', 'adi soyadi', 'öğrenci not bilgisi', 
+                    'sınav', 'puan', 'ortalama', 'toplam', 'ders', 'şube', 'sınıf', 
+                    'cinsiyet', 'tarih', 'başarı'
+                ]
+                
+                if (junkKeywords.some(j => lowerLine.includes(j))) continue
+
+                // 2) Sadece en az bir numara ve en az bir harf içeren "gerçekçi" satırları al
+                if (!/\d/.test(line) || !/[a-zA-ZçğıöşüÇĞİÖŞÜ]/.test(line)) continue
+
+                // 3) Sekmeleri ve çoklu boşlukları tek bir boşluğa indirge (Tablo sütunlarını düzleştir)
+                let normalized = line.replace(/\t/g, ' ').replace(/\s+/g, ' ').trim()
+
+                // 4) RegEx ile Sıra No (Opsiyonel), Okul No ve Sadece İsim Bloğunu Yakala
+                // (?:\d{1,4}\s+)? -> Varsa 1-4 haneli Sıra No ve boşluğu
+                // (\d{1,8})       -> 1-8 haneli Okul No
+                // \s+             -> Boşluk
+                // ([a-zA-ZçğıöşüÇĞİÖŞÜ][a-zA-ZçğıöşüÇĞİÖŞÜ\s\.\-']*) -> Sadece harf, boşluk, nokta ve tire içeren isim bloğu
+                // Bu regex, isimden hemen sonra gelen sayıları (puanları) eşleştirmeye almaz, orada kendiliğinden durur!
+                const match = normalized.match(/^(?:\d{1,4}\s+)?(\d{1,8})\s+([a-zA-ZçğıöşüÇĞİÖŞÜ][a-zA-ZçğıöşüÇĞİÖŞÜ\s\.\-']*)/)
+                if (!match) continue
+
+                let studentNo = match[1]
+                let rawName = match[2].trim()
+
+                // 5) İsimin sonundaki E-Okul Cinsiyet Kodlarını (K, E, KIZ, ERKEK) ayıkla
+                let nameWords = rawName.split(' ').filter(p => p)
+                if (nameWords.length > 1) {
+                    const lastWord = nameWords[nameWords.length - 1].toUpperCase()
+                    if (['K', 'E', 'KIZ', 'ERKEK'].includes(lastWord)) {
+                        nameWords.pop() // Cinsiyet ibaresini isminden çıkar
+                    }
+                }
+
+                let studentName = nameWords.join(' ')
+                studentName = cleanValue(studentName)
+                
+                if (!studentName || studentName.length < 3) continue
+
+                // 6) Duplicate Kontrolü (Gelişmiş)
+                // Sadece isim bazlı değil; No + İsim kombinasyonu ile kontrol et.
+                // Böylece aynı isimli ama farklı numaralı öğrenciler yutulmaz.
+                const duplicateKey = `${studentNo || 'no-no'}|${studentName.toLowerCase()}`
+                if (seenStudents.has(duplicateKey)) continue
+                seenStudents.add(duplicateKey)
+
+                parsedStudents.push({
+                    id: generateTempId(studentNo, studentName, i),
+                    siraNo: String(parsedStudents.length + 1),
+                    studentNumber: studentNo || null,
+                    no: studentNo || null,
+                    name: studentName,
+                    fullName: studentName,
+                    schoolNo: studentNo || null
+                })
+                addedCount++
+            }
+
+            if (parsedStudents.length === 0) {
+                setError('Geçerli öğrenci satırı bulunamadı. Lütfen kopyaladığınız listeyi kontrol edin.')
+                return
+            }
+
+            handleStudentsFound(parsedStudents, 'Pano Verisi')
             setPasteText('')
         } catch (err) {
             setError('İşlem hatası: ' + err.message)

@@ -79,6 +79,13 @@ export const ClassAnalysisSection = ({ analysis, config }) => {
                                         S{i + 1}
                                     </th>
                                 ))}
+                                {config?.courseType === 'Dil Dersi' && (
+                                    <>
+                                        <th className="px-2 py-3 text-center text-xs text-indigo-700 bg-indigo-50/50">Yazılı</th>
+                                        <th className="px-2 py-3 text-center text-xs text-indigo-700 bg-indigo-50/50">Dinleme</th>
+                                        <th className="px-2 py-3 text-center text-xs text-indigo-700 bg-indigo-50/50">Konuşma</th>
+                                    </>
+                                )}
                                 <th className="px-4 py-3 text-center font-bold">Toplam</th>
                                 <th className="px-4 py-3 text-center">Durum</th>
                             </tr>
@@ -104,6 +111,13 @@ export const ClassAnalysisSection = ({ analysis, config }) => {
                                             </td>
                                         )
                                     })}
+                                    {config?.courseType === 'Dil Dersi' && (
+                                        <>
+                                            <td className="px-2 py-3 text-center text-xs text-indigo-900 font-medium bg-indigo-50/20">{Math.round(student.writtenTotal ?? 0)}</td>
+                                            <td className="px-2 py-3 text-center text-xs text-indigo-900 font-medium bg-indigo-50/20">{Math.round(student.dinleme ?? 0)}</td>
+                                            <td className="px-2 py-3 text-center text-xs text-indigo-900 font-medium bg-indigo-50/20">{Math.round(student.konusma ?? 0)}</td>
+                                        </>
+                                    )}
                                     <td className="px-4 py-3 text-center font-bold text-slate-800">
                                         {Math.round(student.total)}
                                     </td>

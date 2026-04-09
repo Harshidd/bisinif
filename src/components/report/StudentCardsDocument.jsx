@@ -254,6 +254,23 @@ const StudentCardPage = ({ student, config, analysis, index, total }) => {
                             <Text style={styles.statLabel}>Sınıf Sırası ({allStudents.length})</Text>
                         </View>
                     </View>
+                    
+                    {config?.courseType === 'Dil Dersi' && (
+                        <View style={{ marginTop: 8, flexDirection: "row", backgroundColor: colors.primary + "10", borderRadius: 8, borderWidth: 1, borderColor: colors.primary + "30", overflow: "hidden" }}>
+                            <View style={{ flex: 1, padding: 6, alignItems: "center", borderRightWidth: 1, borderRightColor: colors.primary + "20" }}>
+                                <Text style={{ fontFamily: "Roboto", fontSize: 12, fontWeight: "bold", color: colors.primary }}>{toNum(student?.writtenTotal, 0).toFixed(0)}</Text>
+                                <Text style={{ fontFamily: "Roboto", fontSize: 7, color: colors.primary, marginTop: 2 }}>Yazılı</Text>
+                            </View>
+                            <View style={{ flex: 1, padding: 6, alignItems: "center", borderRightWidth: 1, borderRightColor: colors.primary + "20" }}>
+                                <Text style={{ fontFamily: "Roboto", fontSize: 12, fontWeight: "bold", color: colors.primary }}>{toNum(student?.dinleme, 0).toFixed(0)}</Text>
+                                <Text style={{ fontFamily: "Roboto", fontSize: 7, color: colors.primary, marginTop: 2 }}>Dinleme</Text>
+                            </View>
+                            <View style={{ flex: 1, padding: 6, alignItems: "center" }}>
+                                <Text style={{ fontFamily: "Roboto", fontSize: 12, fontWeight: "bold", color: colors.primary }}>{toNum(student?.konusma, 0).toFixed(0)}</Text>
+                                <Text style={{ fontFamily: "Roboto", fontSize: 7, color: colors.primary, marginTop: 2 }}>Konuşma</Text>
+                            </View>
+                        </View>
+                    )}
 
                     {/* Öğretmen Görüşü */}
                     <View style={[styles.commentBox, { marginTop: 12, borderColor: durumColor, backgroundColor: durumColor + "10" }]}>
@@ -264,6 +281,19 @@ const StudentCardPage = ({ student, config, analysis, index, total }) => {
                             }
                         </Text>
                     </View>
+
+                    {/* Telafi Çalışmaları */}
+                    {(student?.telafiSecimleri?.length > 0 || student?.telafiNotu) && (
+                        <View style={{ marginTop: 8, padding: 8, backgroundColor: '#FFFBEB', borderRadius: 8, borderWidth: 1, borderColor: '#FDE68A' }}>
+                            <Text style={{ fontFamily: "Roboto", fontSize: 9, fontWeight: "bold", color: '#92400E', marginBottom: 4 }}>Telafi Çalışmaları</Text>
+                            {student?.telafiSecimleri?.length > 0 && student.telafiSecimleri.map((item, idx) => (
+                                <Text key={idx} style={{ fontFamily: "Roboto", fontSize: 8, color: '#92400E', marginBottom: 2 }}>• {item}</Text>
+                            ))}
+                            {student?.telafiNotu && (
+                                <Text style={{ fontFamily: "Roboto", fontSize: 8, color: '#B45309', marginTop: 4 }}>{student.telafiNotu}</Text>
+                            )}
+                        </View>
+                    )}
                 </View>
 
                 {/* Sağ: Chart */}

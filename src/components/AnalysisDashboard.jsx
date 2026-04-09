@@ -4,6 +4,7 @@ import { Download, Printer, FileSpreadsheet, LayoutGrid } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { buildAnalysis } from '../core/analysisEngine'
 import { exportFullReportPDF } from './report/pdfExport'
+import { getLanguageProfile } from '../core/languageProfiles'
 
 // Components
 import { AnalysisSidebar } from './analysis/AnalysisSidebar'
@@ -19,7 +20,7 @@ const AnalysisDashboard = ({ students, grades, questions, config }) => {
 
   // 1. Core Analysis Calculation
   const analysis = useMemo(() => {
-    return buildAnalysis({
+    const baseAnalysis = buildAnalysis({
       students,
       grades,
       questions,
@@ -27,6 +28,67 @@ const AnalysisDashboard = ({ students, grades, questions, config }) => {
       generalPassingScore: config.generalPassingScore || 50,
       outcomeMasteryThreshold: config.outcomeMasteryThreshold || 50
     })
+
+    // Attach Telafi works to all students regardless of course type
+    let studentResults = baseAnalysis.studentResults.map(s => {
+      const studentGrades = grades[s.id] || {}
+      return {
+        ...s,
+        telafiSecimleri: studentGrades.__telafiSecimleri || [],
+        telafiNotu: studentGrades.__telafiNotu || ''
+      }
+    })
+
+    const isLanguage = config.courseType === 'Dil Dersi'
+    if (isLanguage) {
+      // Patch for Language Courses
+      const profile = getLanguageProfile(config.courseType, config.courseName)
+      const w = profile.weights
+      const maxWritten = questions.reduce((sum, q) => sum + (Number(q.maxScore) || 0), 0) || 100
+
+      studentResults = studentResults.map(s => {
+        const studentGrades = grades[s.id] || {}
+        const writtenTotal = s.total // already summed by engine
+        const writtenNormalized = maxWritten > 0 ? (writtenTotal / maxWritten) * 100 : 0
+        
+        const d = Number(studentGrades.__dinleme) || 0
+        const k = Number(studentGrades.__konusma) || 0
+        
+        const finalScore = Math.round(writtenNormalized * w.yazili + d * w.dinleme + k * w.konusma)
+        return {
+          ...s,
+          writtenTotal,
+          writtenNormalized,
+          dinleme: d,
+          konusma: k,
+          total: finalScore,
+          isPassing: finalScore >= (config.generalPassingScore || 50)
+        }
+      })
+    }
+    studentResults.sort((a, b) => b.total - a.total || (a.name || '').localeCompare(b.name || ''))
+    studentResults = studentResults.map((s, idx) => ({ ...s, rank: idx + 1 }))
+
+    const classTotalSum = studentResults.reduce((sum, s) => sum + s.total, 0)
+    const classAverage = studentResults.length > 0 ? classTotalSum / studentResults.length : 0
+    const passCount = studentResults.filter(s => s.isPassing).length
+    const failCount = studentResults.length - passCount
+
+    return {
+      ...baseAnalysis,
+      studentResults,
+      classAverage,
+      passingCount: passCount,
+      failingCount: failCount,
+      passRate: studentResults.length > 0 ? (passCount / studentResults.length) * 100 : 0,
+      meta: {
+        ...baseAnalysis.meta,
+        classAverage,
+        passCount,
+        failCount,
+        passRate: studentResults.length > 0 ? (passCount / studentResults.length) * 100 : 0
+      }
+    }
   }, [students, grades, questions, config])
 
   // 2. Export Functions

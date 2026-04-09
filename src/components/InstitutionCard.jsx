@@ -3,11 +3,22 @@ import { Card, CardContent } from './ui/Card'
 import { Input } from './ui/Input'
 import { Select } from './ui/Select'
 import { Label } from './ui/Label'
-import { Building2, Check, ChevronDown, ChevronUp, MapPin, Save, Download } from 'lucide-react'
+import { Building2, Check, ChevronDown, ChevronUp, MapPin, Save, Download, AlertTriangle } from 'lucide-react'
 import { getIller, getIlceler } from '../data/il-ilce'
 import { loadInstitution, saveInstitution } from '../storage/institutionStore'
 import { Button } from './ui/Button'
 
+/** Rapor/karne/analiz için zorunlu sayılan kritik alanlar */
+const CRITICAL_FIELDS = [
+  { key: 'okulAdi',    label: 'Okul Adı' },
+  { key: 'mudurAdi',   label: 'Müdür Adı' },
+  { key: 'ogretmenAdi',label: 'Öğretmen Adı' },
+  { key: 'sinif',      label: 'Sınıf' },
+]
+
+/** Eksik kritik alanları döndür */
+const getMissingFields = (data) =>
+  CRITICAL_FIELDS.filter((f) => !data[f.key]?.trim())
 /**
  * InstitutionCard — Ana sayfada kurum & sınıf bilgilerini toplayan merkezi kart.
  *
@@ -135,6 +146,29 @@ const InstitutionCard = () => {
         </div>
       </button>
 
+      {/* Eksik alan uyarısı — sadece kart kapalıyken ve eksik varsa */}
+      {!isOpen && (() => {
+        const missing = getMissingFields(data)
+        if (missing.length === 0) return null
+        return (
+          <div className="flex items-center justify-between gap-3 px-6 py-2.5 bg-amber-50 border-t border-amber-100">
+            <div className="flex items-center gap-2 text-amber-700">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+              <p className="text-xs font-medium">
+                Eksik: <span className="font-semibold">{missing.map(f => f.label).join(', ')}</span>
+                <span className="font-normal text-amber-600/80"> — rapor ve karne çıktıları için gereklidir.</span>
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsOpen(true)}
+              className="text-xs font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap transition-colors underline underline-offset-2"
+            >
+              Tamamla
+            </button>
+          </div>
+        )
+      })()}
       {/* Content — Açılır/kapanır */}
       {isOpen && (
         <CardContent className="px-6 md:px-8 pb-8 pt-0 animate-fade-in">

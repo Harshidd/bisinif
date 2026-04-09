@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import GeneralInfoStep from '../../components/GeneralInfoStep'
 import SetupAndGradesStep from '../../components/SetupAndGradesStep'
 import AnalysisDashboard from '../../components/AnalysisDashboard'
+import { getLanguageProfile } from '../../core/languageProfiles'
 import WelcomeModal from '../../components/WelcomeModal'
 import InstitutionBanner from '../../components/InstitutionBanner'
 import { Button } from '../../components/ui/Button'
@@ -24,6 +25,7 @@ const DEFAULT_CONFIG = {
     schoolLevel: 'ortaokul',
     schoolName: '',
     principalName: '',
+    courseType: 'Genel Ders', // Her zaman tanımlı olmalı — cross-browser güvencesi
     courseName: '',
     teacherName: '',
     gradeLevel: '',
@@ -114,62 +116,67 @@ function ExamAnalysis() {
     useEffect(() => {
         const profileMeta = loadProfileMeta()
         const projectMeta = loadProjectMeta()
+        
+        let hasError = profileMeta.hadError || projectMeta.hadError
+        let projectState = projectMeta.data || null
 
-        console.log('storage meta', {
-            profileError: profileMeta.hadError,
-            projectError: projectMeta.hadError,
-        })
-
-        if (profileMeta.hadError || projectMeta.hadError) {
-            setBannerMessage('Kayıt geri yüklenemedi, yeni oturum başlatıldı.')
-            const timer = setTimeout(() => setBannerMessage(''), 5000)
-            return () => clearTimeout(timer)
+        // Güvenli Validation Kontrolü
+        if (projectState) {
+            const hasConfigFields = projectState.config && typeof projectState.config === 'object' && Object.keys(projectState.config).length > 0;
+            const hasCourseStr = hasConfigFields && typeof projectState.config.courseName === 'string';
+            
+            // Eğer projectState schema olarak çok eskiyse veya bozuksa, güvenle reddet
+            if (!hasConfigFields || !hasCourseStr) {
+                console.warn('[Restore] Project state validation failed. Rejecting corrupted/old state.');
+                hasError = true;
+                projectState = null;
+                clearProjectState();
+            }
         }
 
         const safeProfile = normalizeProfile(profileMeta.data || PROFILE_DEFAULT)
         const institutionDefaults = mapInstitutionToConfig(loadInstitution())
-        const projectState = projectMeta.data || null
 
-        if (projectState && projectState.config) {
+        if (hasError) {
+            setBannerMessage('Kayıt geri yüklenemedi, yeni oturum başlatıldı.')
+            const timer = setTimeout(() => setBannerMessage(''), 5000)
+            // Error varsa cleanup yap ama state'i güvenli sarmal içine kur, early return yapma!
+        }
+
+        if (projectState && projectState.config && !hasError) {
+            // Sağlam Restore
             setConfig({
                 ...DEFAULT_CONFIG,
                 ...mapProfileToConfig(safeProfile),
                 ...institutionDefaults,
                 ...projectState.config,
             })
-            setQuestions(projectState.questions || [])
-            setStudents(projectState.students || [])
-            setGrades(projectState.grades || {})
-            setCurrentStep(projectState.currentStep || 1)
-            return undefined
+            setQuestions(Array.isArray(projectState.questions) ? projectState.questions : [])
+            setStudents(Array.isArray(projectState.students) ? projectState.students : [])
+            setGrades(typeof projectState.grades === 'object' && projectState.grades !== null ? projectState.grades : {})
+            setCurrentStep(typeof projectState.currentStep === 'number' ? projectState.currentStep : 1)
+        } else {
+            // Temiz Başlangıç (Kurum store verisi korunur, exam stateleri sıfırlanır)
+            setConfig({
+                ...DEFAULT_CONFIG,
+                ...mapProfileToConfig(safeProfile),
+                ...institutionDefaults,
+            })
+            setQuestions([])
+            setStudents([])
+            setGrades({})
+            setCurrentStep(1)
         }
 
-        setConfig({
-            ...DEFAULT_CONFIG,
-            ...mapProfileToConfig(safeProfile),
-            ...institutionDefaults,
-        })
-        setQuestions([])
-        setStudents([])
-        setGrades({})
-        setCurrentStep(1)
-
+        if (hasError) {
+            return () => {} // Banner temizliği timerı dışarıda clear edilemezse sorun yapmaz ama cleanup eklenebilir if needed
+        }
         return undefined
     }, [])
 
-    // Sayfa kapatıldığında tüm verileri temizle
-    useEffect(() => {
-        const handleBeforeUnload = () => {
-            // Not: Artık router içindeyiz, bu logic sayfa yenilemede çalışır
-            clearProjectState()
-        }
-
-        window.addEventListener('beforeunload', handleBeforeUnload)
-
-        return () => {
-            window.removeEventListener('beforeunload', handleBeforeUnload)
-        }
-    }, [])
+    // Otomatik kayıt zaten useEffect ile yapılıyor (debounced saveProjectState).
+    // beforeunload'da clearProjectState KALDIRILDI — böylece yarım kalan çalışma
+    // sayfa yenileme / kapatma sonrası da korunur ve kaldığı yerden devam edilir.
 
     const profileData = useMemo(() => ({
         il: toSafeString(config.city),
@@ -193,22 +200,29 @@ function ExamAnalysis() {
         config.principalName,
     ])
 
-    // localStorage'a kaydet (500ms debounce)
+    // localStorage'a kaydet (500ms debounce + Beforeunload anında anlık kayıt)
     useEffect(() => {
+        const payload = { currentStep, config, questions, students, grades };
+        
+        // Timer for typical interaction debounce
         const timer = setTimeout(() => {
-            const projectSaved = saveProjectState({
-                currentStep,
-                config,
-                questions,
-                students,
-                grades,
-            })
+            const projectSaved = saveProjectState(payload);
             if (!projectSaved) {
-                setBannerMessage((prev) => prev || 'Tarayıcı kaydetmeye izin vermedi.')
+                setBannerMessage((prev) => prev || 'Tarayıcı kaydetmeye izin vermedi.');
             }
-        }, 500)
-        return () => clearTimeout(timer)
-    }, [currentStep, config, questions, students, grades])
+        }, 500);
+
+        // Synchronous save handler for tab close
+        const handleBeforeUnload = () => {
+            saveProjectState(payload);
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [currentStep, config, questions, students, grades]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -251,6 +265,10 @@ function ExamAnalysis() {
             setCurrentStep(currentStep - 1)
         }
     }, [currentStep])
+
+    const getAnalysisProps = () => {
+        return { config, questions, grades }
+    }
 
     const steps = [
         { number: 1, title: 'Genel Bilgiler' },
@@ -399,15 +417,16 @@ function ExamAnalysis() {
                             onConfigChange={handleConfigChange}
                             onGradesChange={handleGradesChange}
                             onNext={() => setCurrentStep(3)}
+                            onNewAnalysis={handleNewAnalysis}
                         />
                     )}
 
                     {currentStep === 3 && (
                         <AnalysisDashboard
-                            config={config}
-                            questions={questions}
+                            config={getAnalysisProps().config}
+                            questions={getAnalysisProps().questions}
                             students={students}
-                            grades={grades}
+                            grades={getAnalysisProps().grades}
                             onBack={handleBack}
                             onEditGrades={handleEditGrades}
                             onNewAnalysis={handleNewAnalysis}
