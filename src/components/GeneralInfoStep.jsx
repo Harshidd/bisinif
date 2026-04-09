@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { Card, CardContent } from './ui/Card'
 import { Input } from './ui/Input'
 import { Select } from './ui/Select'
@@ -13,20 +13,46 @@ const GeneralInfoStep = ({ config, onConfigChange, onNext }) => {
   // Ana sayfadaki kurum verilerini al
   const inst = useMemo(() => loadInstitution(), [])
 
+  // courseType her zaman tanımlı olsun — Edge/Firefox cross-browser güvencesi
+  useEffect(() => {
+    if (!config.courseType) {
+      onConfigChange({ courseType: 'Genel Ders' })
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const courseType = config.courseType || 'Genel Ders'
+
   const validateForm = () => {
     const newErrors = {}
-    if (!config.schoolName?.trim()) newErrors.schoolName = 'Okul adı gereklidir'
-    if (!config.principalName?.trim()) newErrors.principalName = 'Müdür adı gereklidir'
+
+    // Yalnızca GÖRÜNÜR (institution store tarafından doldurulmamış) alanları doğrula.
+    // Kurum store'dan gelen veri config'e zaten yazılmış olur;
+    // eğer yazılmamışsa (inst alanı boş) config'ten kontrol et.
+    const effectiveSchoolName = config.schoolName?.trim() || inst.okulAdi?.trim() || ''
+    const effectivePrincipal = config.principalName?.trim() || inst.mudurAdi?.trim() || ''
+    const effectiveTeacher = config.teacherName?.trim() || inst.ogretmenAdi?.trim() || ''
+    const effectiveGrade = config.gradeLevel?.trim() || inst.sinif?.trim() || ''
+
+    if (!effectiveSchoolName) newErrors.schoolName = 'Okul adı gereklidir'
+    if (!effectivePrincipal) newErrors.principalName = 'Müdür adı gereklidir'
     if (!config.courseName?.trim()) newErrors.courseName = 'Ders adı gereklidir'
-    if (!config.teacherName?.trim()) newErrors.teacherName = 'Öğretmen adı gereklidir'
-    if (!config.gradeLevel?.trim()) newErrors.gradeLevel = 'Sınıf seçiniz'
+    if (!effectiveTeacher) newErrors.teacherName = 'Öğretmen adı gereklidir'
+    if (!effectiveGrade) newErrors.gradeLevel = 'Sınıf seçiniz'
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
-  const courseType = config.courseType || 'Genel Ders'
+  const handleCourseTypeSelect = (type) => {
+    // Atomik güncelleme — görsel state ile form state her zaman senkron
+    onConfigChange({ courseType: type, courseName: '' })
+    // courseName alanı değişince önceki hataları temizle
+    setErrors((prev) => ({ ...prev, courseName: undefined }))
+  }
 
-  const handleSubmit = () => {
+  const handleSubmit = (e) => {
+    // Native browser form submit'ini tamamen devre dışı bırak
+    if (e && e.preventDefault) e.preventDefault()
     if (validateForm()) {
       onNext()
     }
@@ -47,13 +73,21 @@ const GeneralInfoStep = ({ config, onConfigChange, onNext }) => {
     'Matematik',
     'Fen Bilimleri',
     'Sosyal Bilgiler',
-    'Tarih',
-    'Coğrafya',
+    'T.C. İnkılap Tarihi ve Atatürkçülük',
+    'Din Kültürü ve Ahlak Bilgisi',
+    'İngilizce',
     'Fizik',
     'Kimya',
     'Biyoloji',
-    'Din Kültürü',
-    'Bilişim Teknolojileri',
+    'Tarih',
+    'Coğrafya',
+    'Felsefe',
+    'Görsel Sanatlar',
+    'Müzik',
+    'Beden Eğitimi ve Spor',
+    'Teknoloji ve Tasarım',
+    'Bilişim Teknolojileri ve Yazılım',
+    'Rehberlik',
   ]
 
   const languageCourses = [
@@ -66,13 +100,15 @@ const GeneralInfoStep = ({ config, onConfigChange, onNext }) => {
   ]
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <form
+      className="max-w-4xl mx-auto"
+      noValidate
+      onSubmit={handleSubmit}
+    >
       <div className="mb-6 flex flex-col items-center sm:items-start text-center sm:text-left">
         <h1 className="text-xl font-bold text-gray-900 mb-1">Genel Bilgiler</h1>
         <p className="text-sm text-gray-500">Sınav bilgilerinizi girin.</p>
       </div>
-
-
 
       <Card className="shadow-apple-md">
         <CardContent className="p-6 md:p-8 space-y-4">
@@ -137,7 +173,11 @@ const GeneralInfoStep = ({ config, onConfigChange, onNext }) => {
               <Label className="text-gray-600 font-medium">Ders Türü</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div 
-                  onClick={() => onConfigChange({ courseType: 'Genel Ders', courseName: '' })}
+                  onClick={() => handleCourseTypeSelect('Genel Ders')}
+                  role="radio"
+                  aria-checked={courseType === 'Genel Ders'}
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === 'Enter' || e.key === ' ' ? handleCourseTypeSelect('Genel Ders') : null}
                   className={`relative flex cursor-pointer rounded-xl border p-4 shadow-sm transition-all focus:outline-none ${courseType === 'Genel Ders' ? 'border-blue-500 bg-blue-50/50 ring-1 ring-blue-500' : 'border-gray-200 bg-white hover:bg-gray-50'}`}
                 >
                   <div className="flex w-full items-center justify-between">
@@ -154,7 +194,11 @@ const GeneralInfoStep = ({ config, onConfigChange, onNext }) => {
                 </div>
 
                 <div 
-                  onClick={() => onConfigChange({ courseType: 'Dil Dersi', courseName: '' })}
+                  onClick={() => handleCourseTypeSelect('Dil Dersi')}
+                  role="radio"
+                  aria-checked={courseType === 'Dil Dersi'}
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === 'Enter' || e.key === ' ' ? handleCourseTypeSelect('Dil Dersi') : null}
                   className={`relative flex cursor-pointer rounded-xl border p-4 shadow-sm transition-all focus:outline-none ${courseType === 'Dil Dersi' ? 'border-indigo-500 bg-indigo-50/50 ring-1 ring-indigo-500' : 'border-gray-200 bg-white hover:bg-gray-50'}`}
                 >
                   <div className="flex w-full items-center justify-between">
@@ -282,11 +326,11 @@ const GeneralInfoStep = ({ config, onConfigChange, onNext }) => {
       </Card>
 
       <div className="flex justify-center mt-10">
-        <Button onClick={handleSubmit} size="xl" className="min-w-[240px]">
+        <Button type="submit" size="xl" className="min-w-[240px]">
           Devam Et
         </Button>
       </div>
-    </div>
+    </form>
   )
 }
 

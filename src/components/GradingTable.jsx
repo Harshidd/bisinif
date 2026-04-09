@@ -944,13 +944,15 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
                             onChange={(e) => {
                               const current = grades[remedialStudent.id]?.__telafiSecimleri || [];
                               const next = e.target.checked ? [...current, option] : current.filter(x => x !== option);
-                              onGradesChange({
+                              const nextGrades = {
                                 ...grades,
                                 [remedialStudent.id]: {
                                   ...grades[remedialStudent.id],
                                   __telafiSecimleri: next
                                 }
-                              });
+                              };
+                              setGrades(nextGrades);
+                              onGradesChange(nextGrades);
                             }}
                           />
                           <div className={`w-5 h-5 rounded flex items-center justify-center transition-colors border ${isSelected ? 'bg-indigo-600 border-indigo-600 shadow-inner' : 'bg-white border-slate-300 peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-500 peer-focus-visible:ring-offset-2'}`}>
@@ -970,13 +972,17 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
                   className="w-full min-h-[100px] p-3 text-sm rounded-lg border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 placeholder-slate-400"
                   placeholder="Yapılan özel telafi çalışmalarına dair ek notlar giriniz..."
                   value={grades[remedialStudent.id]?.__telafiNotu || ''}
-                  onChange={(e) => onGradesChange({
-                    ...grades,
-                    [remedialStudent.id]: {
-                      ...grades[remedialStudent.id],
-                      __telafiNotu: e.target.value
-                    }
-                  })}
+                  onChange={(e) => {
+                    const nextGrades = {
+                      ...grades,
+                      [remedialStudent.id]: {
+                        ...grades[remedialStudent.id],
+                        __telafiNotu: e.target.value
+                      }
+                    };
+                    setGrades(nextGrades);
+                    onGradesChange(nextGrades);
+                  }}
                 />
               </div>
             </div>
