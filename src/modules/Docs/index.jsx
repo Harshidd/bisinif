@@ -4,6 +4,7 @@ import { Routes, Route } from 'react-router-dom'
 import DocsHeader from './components/DocsHeader'
 import DocsHubPage from './pages/DocsHubPage'
 import DisciplineDocsPage from './pages/DisciplineDocsPage'
+import ParentMeetingDocsPage from './pages/ParentMeetingDocsPage'
 import CommitteeDocsPage from './pages/CommitteeDocsPage'
 import PlansDocsPage from './pages/PlansDocsPage'
 import HomeworkDocsPage from './pages/HomeworkDocsPage'
@@ -16,6 +17,7 @@ export default function Docs() {
                 <Routes>
                     <Route path="/" element={<DocsHubPage />} />
                     <Route path="discipline" element={<DisciplineDocsPage />} />
+                    <Route path="parent-meeting" element={<ParentMeetingDocsPage />} />
                     <Route path="committee" element={<CommitteeDocsPage />} />
                     <Route path="plans" element={<PlansDocsPage />} />
                     <Route path="homework" element={<HomeworkDocsPage />} />

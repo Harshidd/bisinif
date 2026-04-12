@@ -4,7 +4,8 @@ import {
     FileText,
     ShieldAlert,
     CalendarDays,
-    ArrowRight
+    ArrowRight,
+    UsersRound
 } from 'lucide-react'
 
 const DocsHubPage = () => {
@@ -44,6 +45,27 @@ const DocsHubPage = () => {
                                 </div>
                             </div>
                             <span className="inline-flex items-center gap-2 text-sm font-semibold text-red-700 group-hover:gap-3 transition-all">
+                                Aç
+                                <ArrowRight className="w-4 h-4" />
+                            </span>
+                        </Link>
+
+                        <Link
+                            to="parent-meeting"
+                            className="group mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl border border-amber-100 bg-amber-50/40 hover:bg-amber-50 hover:border-amber-200 transition-all"
+                        >
+                            <div className="flex items-start gap-4">
+                                <span className="w-11 h-11 rounded-xl bg-white text-amber-700 flex items-center justify-center border border-amber-100 shadow-sm">
+                                    <UsersRound className="w-5 h-5" />
+                                </span>
+                                <div>
+                                    <h2 className="text-lg font-bold text-gray-900">Veli Görüşme Tutanağı</h2>
+                                    <p className="text-sm text-gray-500 mt-1">
+                                        Tek görüşme için öğrenci, veli, konu ve sonuç bilgilerini hazırlayın.
+                                    </p>
+                                </div>
+                            </div>
+                            <span className="inline-flex items-center gap-2 text-sm font-semibold text-amber-700 group-hover:gap-3 transition-all">
                                 Aç
                                 <ArrowRight className="w-4 h-4" />
                             </span>
