@@ -10,6 +10,9 @@ const KEYS = {
     // Primary: Docs-owned context
     DOCS_CONTEXT: DOCS_KEYS.CONTEXT,
 
+    // Docs-local discipline draft
+    DISCIPLINE_DRAFT: 'bisinif.docs.disciplineDraft.v1',
+
     // Fallback/Import Source: Global ClassManagement meta
     // Used ONLY for "Import from Class" action, never auto-sync
     GLOBAL_META: KEY_MAP.META
@@ -48,6 +51,14 @@ export const loadMeta = () => readStorage(KEYS.DOCS_CONTEXT, {})
 
 // 2. Save Docs Context (Docs ONLY)
 export const saveMeta = (meta) => writeStorage(KEYS.DOCS_CONTEXT, meta)
+
+// 2b. Discipline draft (Docs ONLY)
+export const loadDisciplineDraft = () => readStorage(KEYS.DISCIPLINE_DRAFT, null)
+
+export const saveDisciplineDraft = (draft) => writeStorage(KEYS.DISCIPLINE_DRAFT, {
+    ...draft,
+    savedAt: new Date().toISOString()
+})
 
 // 3. Import from Global (One-time action)
 // Copies current ClassManagement metadata into Docs context
