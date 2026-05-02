@@ -1,86 +1,139 @@
-# Sınav Analiz Sistemi
+# BiSinif
 
-Modern ve kapsamlı bir sınav değerlendirme platformu. Öğretmenlerin sınav sonuçlarını hızlı ve kolay bir şekilde analiz etmelerine yardımcı olur.
+Öğretmen odaklı okul iş akışlarını tek panelde toplamayı hedefleyen pratik bir okul çalışma sistemi.
 
-## Özellikler
+## Genel Bakış
 
-- 🎓 **Okul Düzeyi Seçimi**: Ortaokul ve Lise için özelleştirilebilir
-- 📊 **Excel Entegrasyonu**: Öğrenci listelerini Excel'den kolayca yükleyin
-- ✍️ **Kazanım Bazlı Değerlendirme**: Her kazanım için ayrı puanlama
-- 📈 **Görsel Analiz**: Pasta ve çubuk grafikleri ile detaylı analiz
-- 📱 **Responsive Tasarım**: Mobil ve masaüstü uyumlu
-- 🖨️ **Yazdırma Desteği**: PDF olarak kaydetme özelliği
-- ⚡ **Gerçek Zamanlı Hesaplama**: Otomatik toplam ve durum hesaplama
+BiSinif, öğretmenlerin günlük okul işlerinde kullandığı dağınık araçları ve tekrar eden işlemleri azaltmak için geliştirilen modüler bir üründür. Amaç gösterişli bir yönetim paneli kurmak değil; sınav, sınıf ve evrak süreçlerinde öğretmenin gerçekten ihtiyaç duyduğu işleri daha düzenli, hızlı ve düşük sürtünmeli hale getirmektir.
 
-## Teknolojiler
+Proje, okul içinde sık tekrarlanan görevleri tek bir dijital çalışma katmanında toplamaya çalışır. Bu yüzden BiSinif yalnızca bir analiz aracı veya belge üretici değildir; öğretmenin gün içinde tekrar tekrar döndüğü temel akışları bir arada ele alan büyüyen bir okul iş akışı sistemidir.
 
-- **React 18**: Modern UI framework
-- **Vite**: Hızlı geliştirme ortamı
-- **Tailwind CSS**: Utility-first CSS framework
-- **Shadcn/UI**: Yüksek kaliteli UI bileşenleri
-- **Recharts**: Güçlü grafik kütüphanesi
-- **XLSX**: Excel dosya işleme
+## BiSinif Felsefesi
+
+BiSinif'in ürün yaklaşımı sade ve pratiktir:
+
+- Öğretmenin günlük iş yükünü azaltmak
+- Aynı bilgiyi farklı yerlerde tekrar tekrar girdirmemek
+- Kritik okul işlerini tek panelden yönetilebilir hale getirmek
+- Hızlı ve güvenilir çıktı üretmek
+- Yerel geliştirme ve pratik kullanım üzerinden ilerlemek
+- Ürün kararlarını gerçek okul işi etrafında almak
+
+Bu proje için önemli olan, her modülün sahadaki öğretmen işine karşılık gelmesidir. Gereksiz karmaşıklık yerine kontrollü, anlaşılır ve sürdürülebilir akışlar tercih edilir.
+
+## Ana Modüller
+
+### Sınav Analizi
+
+Sınav sonuçlarını, kazanım dağılımlarını ve öğrenci başarı durumlarını daha okunabilir hale getiren analiz alanıdır. Öğretmenin sınav sonrası değerlendirme sürecini hızlandırmayı ve sınıf düzeyindeki tabloyu daha net görmesini amaçlar.
+
+### Sınıf Yönetimi
+
+Öğrenci listeleri, sınıf bilgileri ve sınıf içi operasyonlara temel oluşturan yönetim alanıdır. BiSinif'in diğer modüllerinde kullanılan okul ve sınıf bağlamının daha düzenli tutulmasına yardımcı olur.
+
+### Evrak & Plan
+
+Okul içinde sık hazırlanan belge ve plan akışlarını daha hızlı üretmeye odaklanan modüldür. Belge akışları, öğretmenin küçük adımlarla veri girmesi ve resmi görünümlü çıktıya ulaşması prensibiyle geliştirilir.
+
+## Mevcut Durum
+
+BiSinif aktif olarak gelişen bir projedir. Bazı modüller daha oturmuş durumdayken bazı akışlar hâlâ kontrollü biçimde genişletilmektedir.
+
+Şu anki genel durum:
+
+- Sınav analizi tarafında temel değerlendirme ve raporlama akışları bulunur.
+- Sınıf yönetimi, öğrenci ve sınıf bağlamını düzenlemek için ana yapı taşlarından biridir.
+- Evrak & Plan modülünde çalışan belge akışları vardır ve yeni belge türleri kademeli olarak eklenmektedir.
+- Ürün, modülleri birbirinden izole tutarak büyütülmektedir.
+
+## Neyi Çözmeye Çalışır?
+
+BiSinif şu öğretmen problemlerini azaltmaya odaklanır:
+
+- Farklı işler için dağınık araçlar kullanmak
+- Aynı öğrenci, sınıf veya okul bilgisini tekrar tekrar girmek
+- Belge hazırlarken zaman kaybetmek
+- Sınav ve kazanım değerlendirmelerini manuel takip etmek
+- Sınıf süreçlerinde pratik yönetim eksikliği yaşamak
+- Resmi çıktı üretirken format ve düzenle uğraşmak
 
 ## Kurulum
 
-1. Bağımlılıkları yükleyin:
+### Gereksinimler
+
+- Node.js
+- npm
+
+### Yerel Geliştirme
+
+Bağımlılıkları yükleyin:
+
 ```bash
 npm install
 ```
 
-2. Geliştirme sunucusunu başlatın:
+Geliştirme sunucusunu başlatın:
+
 ```bash
 npm run dev
 ```
 
-3. Tarayıcınızda açın: `http://localhost:5173`
+Varsayılan geliştirme adresi:
 
-## Production Build
+```text
+http://localhost:5173
+```
+
+Production build almak için:
 
 ```bash
 npm run build
+```
+
+Build çıktısını yerelde önizlemek için:
+
+```bash
 npm run preview
 ```
 
-## Kullanım
+## Proje Yapısı
 
-### 1. Konfigürasyon
-- Okul düzeyi (Ortaokul/Lise) seçin
-- Okul, öğretmen ve ders bilgilerini girin
-- Başarı barajını belirleyin (varsayılan %45)
-- Kazanım sayısını ve açıklamalarını girin
-- Her kazanım için puan dağılımını yapın (toplam 100 olmalı)
+Proje React ve Vite tabanlıdır. Yapı modüler olarak büyütülmektedir.
 
-### 2. Öğrenci Listesi
-- Excel dosyasını sürükle-bırak ile yükleyin
-- Dosyada "No" ve "Ad Soyad" sütunları bulunmalıdır
-- Alternatif olarak manuel giriş yapabilirsiniz
+Öne çıkan dizinler:
 
-### 3. Not Girişi
-- Her öğrenci için kazanım puanlarını girin
-- Sistem otomatik olarak toplam puanı hesaplar
-- Maksimum puanı aşan girişler için uyarı verir
+- `src/modules/ExamAnalysis`: sınav analizi modülü
+- `src/modules/ClassManagement`: sınıf yönetimi modülü
+- `src/modules/Docs`: evrak ve plan akışları
+- `src/components`: ortak arayüz bileşenleri
+- `src/core`: ortak çekirdek yardımcılar ve iş mantıkları
+- `src/storage`: depolama erişimleri
 
-### 4. Analiz
-- Genel başarı dağılımını görüntüleyin
-- Kazanım bazlı analiz grafikleri inceleyin
-- Detaylı raporu yazdırın veya PDF olarak kaydedin
+Modüller mümkün olduğunca kendi sınırları içinde geliştirilir. Bu, çalışan bir alanı bozarak başka bir alanı büyütme riskini azaltır.
 
-## Excel Dosya Formatı
+## Geliştirme Yaklaşımı
 
-Excel dosyanız şu formatta olmalıdır:
+BiSinif'te geliştirme küçük ve kontrollü adımlarla ilerler:
 
-| No | Ad Soyad |
-|----|----------|
-| 1  | Ahmet Yılmaz |
-| 2  | Ayşe Demir |
-| ... | ... |
+- Çalışan modülü bozmadan geliştirme yapmak
+- Modül izolasyonunu korumak
+- Önce kullanılabilir akışı kurmak, sonra iyileştirmek
+- Yerel ortamda hızlı deneme ve doğrulama yapmak
+- Öğretmen için düşük sürtünmeli kararlar almak
+- Geniş refaktörlerden kaçınarak ürün yüzeyini güvenli büyütmek
 
-## Lisans
+Bu yaklaşım, projenin aynı anda hem ürün olarak kullanılabilir kalmasını hem de yeni okul iş akışlarına açılmasını sağlar.
 
-© 2026 BiAkademi - Tüm hakları saklıdır
+## Yol Haritası
 
-## Destek
+Kısa ve orta vadeli yön:
 
-Herhangi bir sorun veya öneri için lütfen iletişime geçin.
+- Mevcut ana modülleri daha sağlam hale getirmek
+- Evrak & Plan tarafındaki belge akışlarını kontrollü biçimde genişletmek
+- Sınav ve sınıf süreçleri arasındaki pratik bağlantıları güçlendirmek
+- Daha fazla okul içi işi tek panelde yönetilebilir hale getirmek
+- Öğretmen deneyimini daha hızlı, sade ve düşük sürtünmeli yapmak
 
+## Not
+
+BiSinif hâlâ aktif olarak gelişmektedir. README, projenin mevcut yönünü ve ürün çerçevesini anlatır; modüller ve iş akışları zaman içinde olgunlaşmaya devam edecektir.
