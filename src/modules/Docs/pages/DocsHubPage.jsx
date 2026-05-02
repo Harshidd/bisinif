@@ -6,7 +6,9 @@ import {
     CalendarDays,
     ArrowRight,
     UsersRound,
-    ClipboardCheck
+    ClipboardCheck,
+    CheckSquare,
+    ClipboardList
 } from 'lucide-react'
 
 const DocsHubPage = () => {
@@ -88,6 +90,48 @@ const DocsHubPage = () => {
                                 </div>
                             </div>
                             <span className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 group-hover:gap-3 transition-all">
+                                Aç
+                                <ArrowRight className="w-4 h-4" />
+                            </span>
+                        </Link>
+
+                        <Link
+                            to="homework"
+                            className="group mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl border border-sky-100 bg-sky-50/40 hover:bg-sky-50 hover:border-sky-200 transition-all"
+                        >
+                            <div className="flex items-start gap-4">
+                                <span className="w-11 h-11 rounded-xl bg-white text-sky-700 flex items-center justify-center border border-sky-100 shadow-sm">
+                                    <CheckSquare className="w-5 h-5" />
+                                </span>
+                                <div>
+                                    <h2 className="text-lg font-bold text-gray-900">Ödevlendirme Tutanağı</h2>
+                                    <p className="text-sm text-gray-500 mt-1">
+                                        Öğrenciye verilen ödev, teslim tarihi ve kapsam bilgisini kayıt altına alın.
+                                    </p>
+                                </div>
+                            </div>
+                            <span className="inline-flex items-center gap-2 text-sm font-semibold text-sky-700 group-hover:gap-3 transition-all">
+                                Aç
+                                <ArrowRight className="w-4 h-4" />
+                            </span>
+                        </Link>
+
+                        <Link
+                            to="performance-project"
+                            className="group mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl border border-violet-100 bg-violet-50/40 hover:bg-violet-50 hover:border-violet-200 transition-all"
+                        >
+                            <div className="flex items-start gap-4">
+                                <span className="w-11 h-11 rounded-xl bg-white text-violet-700 flex items-center justify-center border border-violet-100 shadow-sm">
+                                    <ClipboardList className="w-5 h-5" />
+                                </span>
+                                <div>
+                                    <h2 className="text-lg font-bold text-gray-900">Performans / Proje Değerlendirme Formu</h2>
+                                    <p className="text-sm text-gray-500 mt-1">
+                                        Performans veya proje çalışmasını ölçütlere göre hızlıca değerlendirip resmi form çıktısı alın.
+                                    </p>
+                                </div>
+                            </div>
+                            <span className="inline-flex items-center gap-2 text-sm font-semibold text-violet-700 group-hover:gap-3 transition-all">
                                 Aç
                                 <ArrowRight className="w-4 h-4" />
                             </span>

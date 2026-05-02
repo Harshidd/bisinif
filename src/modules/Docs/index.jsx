@@ -9,6 +9,7 @@ import DutyIncidentDocsPage from './pages/DutyIncidentDocsPage'
 import CommitteeDocsPage from './pages/CommitteeDocsPage'
 import PlansDocsPage from './pages/PlansDocsPage'
 import HomeworkDocsPage from './pages/HomeworkDocsPage'
+import PerformanceProjectDocsPage from './pages/PerformanceProjectDocsPage'
 
 export default function Docs() {
     return (
@@ -23,6 +24,7 @@ export default function Docs() {
                     <Route path="committee" element={<CommitteeDocsPage />} />
                     <Route path="plans" element={<PlansDocsPage />} />
                     <Route path="homework" element={<HomeworkDocsPage />} />
+                    <Route path="performance-project" element={<PerformanceProjectDocsPage />} />
                 </Routes>
             </main>
         </div>

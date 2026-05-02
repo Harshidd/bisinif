@@ -19,6 +19,12 @@ const KEYS = {
     // Docs-local duty incident draft
     DUTY_INCIDENT_DRAFT: 'bisinif.docs.dutyIncidentDraft.v1',
 
+    // Docs-local homework assignment draft
+    HOMEWORK_ASSIGNMENT_DRAFT: 'bisinif.docs.homeworkAssignmentDraft.v1',
+
+    // Docs-local performance/project evaluation draft
+    PERFORMANCE_PROJECT_DRAFT: 'bisinif.docs.performanceProjectDraft.v1',
+
     // Fallback/Import Source: Global ClassManagement meta
     // Used ONLY for "Import from Class" action, never auto-sync
     GLOBAL_META: KEY_MAP.META
@@ -76,6 +82,20 @@ export const saveParentMeetingDraft = (draft) => writeStorage(KEYS.PARENT_MEETIN
 export const loadDutyIncidentDraft = () => readStorage(KEYS.DUTY_INCIDENT_DRAFT, null)
 
 export const saveDutyIncidentDraft = (draft) => writeStorage(KEYS.DUTY_INCIDENT_DRAFT, {
+    ...draft,
+    savedAt: new Date().toISOString()
+})
+
+export const loadHomeworkAssignmentDraft = () => readStorage(KEYS.HOMEWORK_ASSIGNMENT_DRAFT, null)
+
+export const saveHomeworkAssignmentDraft = (draft) => writeStorage(KEYS.HOMEWORK_ASSIGNMENT_DRAFT, {
+    ...draft,
+    savedAt: new Date().toISOString()
+})
+
+export const loadPerformanceProjectDraft = () => readStorage(KEYS.PERFORMANCE_PROJECT_DRAFT, null)
+
+export const savePerformanceProjectDraft = (draft) => writeStorage(KEYS.PERFORMANCE_PROJECT_DRAFT, {
     ...draft,
     savedAt: new Date().toISOString()
 })

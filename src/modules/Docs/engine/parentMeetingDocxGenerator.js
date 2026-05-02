@@ -60,24 +60,74 @@ const buildMeetingSections = (data) => {
     const paragraphs = splitParagraphs(data.summaryText).filter(item => item !== topic)
     const resultParagraph = paragraphs.find(item => item.toLocaleLowerCase('tr-TR').startsWith('sonuç:'))
     const collaborationParagraph = paragraphs.find(item => item.toLocaleLowerCase('tr-TR').startsWith('iş birliği yapılacak kişi/kurum:'))
-    const summary = paragraphs
+    const summaryItems = paragraphs
         .filter(item => item !== resultParagraph && item !== collaborationParagraph)
         .filter(item => !item.toLocaleLowerCase('tr-TR').startsWith('görüşme konusu:'))
-        .map(normalizeBodyText)
+        .map(cleanSummaryParagraph)
         .filter(Boolean)
     const resultText = resultParagraph ? stripEnding(resultParagraph.replace(/^Sonuç:\s*/i, '')) : ''
     const collaborationText = collaborationParagraph ? stripEnding(collaborationParagraph.replace(/^İş birliği yapılacak kişi\/kurum:\s*/i, '')) : ''
 
     return {
-        subject: normalizeBodyText(`${date} tarihinde ${student}${classPart ? ` (${classPart})` : ''} velisi ${parent} ile ${meetingType.toLocaleLowerCase('tr-TR')} görüşme yapılmıştır. Görüşmenin ana konusu ${topic.toLocaleLowerCase('tr-TR')}${subject ? `, özel başlığı ise ${subject}` : ''} olarak kayıt altına alınmıştır`),
-        summary: summary.length ? summary : ['Görüşmede öğrenciye ilişkin gözlem, ihtiyaç ve takip başlıkları veli ile paylaşılmıştır.'],
+        subject: buildSubjectParagraph({ date, student, parent, classPart, meetingType, topic, subject }),
+        summary: buildSummaryParagraphs(summaryItems),
         result: resultParagraph
-            ? normalizeBodyText(`Görüşme sonunda ${lowerFirst(resultText)}`)
+            ? buildResultParagraph(resultText)
             : 'Görüşme sonunda veli bilgilendirilmiş, öğrencinin sürecinin okul ve aile iş birliğiyle takip edilmesi uygun görülmüştür.',
         collaboration: collaborationParagraph
-            ? normalizeBodyText(`Gerekli görülen iş birliği ve yönlendirme ${lowerFirst(collaborationText)} ile sürdürülecektir`)
+            ? buildCollaborationParagraph(collaborationText)
             : ''
     }
+}
+
+const buildSubjectParagraph = ({ date, student, parent, classPart, meetingType, topic, subject }) => {
+    const meeting = meetingType.toLocaleLowerCase('tr-TR')
+    const topicText = lowerFirst(topic)
+    const subjectText = subject ? ` Görüşmede ayrıca ${lowerFirst(stripEnding(subject))} başlığı üzerinde durulmuştur.` : ''
+    return normalizeBodyText(`${date} tarihinde ${student}${classPart ? ` (${classPart})` : ''} velisi ${parent} ile ${meeting} görüşme gerçekleştirilmiştir. Görüşmenin ana çerçevesi ${topicText} olarak belirlenmiştir.${subjectText}`)
+}
+
+const buildSummaryParagraphs = (items) => {
+    if (items.length === 0) {
+        return ['Görüşmede öğrenciye ilişkin gözlem, ihtiyaç ve takip başlıkları veli ile paylaşılmıştır.']
+    }
+    return items.map(item => normalizeBodyText(item))
+}
+
+const cleanSummaryParagraph = (text) => {
+    const clean = stripEnding(text)
+    if (!clean) return ''
+    const withoutMeetingPrefix = clean.replace(/^Görüşmede\s+/i, '')
+    if (withoutMeetingPrefix !== clean) {
+        return `Görüşmede ${lowerFirst(withoutMeetingPrefix)}.`
+    }
+    return normalizeBodyText(clean)
+}
+
+const buildResultParagraph = (resultText) => {
+    const items = splitInlineList(resultText).map(resultItemToDecision)
+    if (items.length === 0) {
+        return 'Görüşme sonunda öğrencinin sürecinin okul ve aile iş birliğiyle takip edilmesi uygun görülmüştür.'
+    }
+    return normalizeBodyText(`Görüşme sonunda ${joinTurkish(items)} karar verilmiştir`)
+}
+
+const resultItemToDecision = (item) => {
+    const key = item.toLocaleLowerCase('tr-TR')
+    const decisions = {
+        'veli bilgilendirildi': 'velinin bilgilendirilmesine',
+        'evde takip önerildi': 'evde takibin sürdürülmesine',
+        'rehberlik yönlendirmesi yapıldı': 'rehberlik yönlendirmesinin yapılmasına',
+        'tekrar görüşme önerildi': 'ihtiyaç halinde tekrar görüşme yapılmasına',
+        'idare bilgilendirildi': 'idarenin bilgilendirilmesine'
+    }
+    return decisions[key] || `${lowerFirst(item)} başlığının takip edilmesine`
+}
+
+const buildCollaborationParagraph = (collaborationText) => {
+    const clean = stripEnding(collaborationText)
+    if (!clean) return ''
+    return normalizeBodyText(`Süreç, gerekli görülmesi halinde ${clean} ile iş birliği içinde takip edilecektir`)
 }
 
 const titleBlock = (data) => [
@@ -129,6 +179,16 @@ const normalizeInline = (value) => String(value || '').replace(/\s+/g, ' ').trim
 const lowerFirst = (value) => value ? value.charAt(0).toLocaleLowerCase('tr-TR') + value.slice(1) : value
 
 const stripEnding = (value) => normalizeInline(value).replace(/[.!?]$/, '')
+
+const splitInlineList = (value) => stripEnding(value)
+    .split(/\s*;\s*/)
+    .map(item => stripEnding(item))
+    .filter(Boolean)
+
+const joinTurkish = (items) => {
+    if (items.length <= 1) return items[0] || ''
+    return `${items.slice(0, -1).join(', ')} ve ${items[items.length - 1]}`
+}
 
 const normalizeBodyText = (value) => {
     const clean = normalizeInline(value)

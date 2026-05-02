@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { Home, ChevronRight, FileText, Settings, Pencil, Plus } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
+import { Home, ChevronRight, FileText, Pencil, Plus } from 'lucide-react'
 import { loadMeta } from '../storage/docsStorage'
 import ContextEditorPanel from './ContextEditorPanel'
 
@@ -9,11 +9,11 @@ const PAGE_TITLES = {
     'discipline': 'Disiplin',
     'committee': 'Zümre',
     'plans': 'Planlar',
-    'homework': 'Ödev & Kontrol'
+    'homework': 'Ödevlendirme',
+    'performance-project': 'Performans / Proje'
 }
 
 const DocsHeader = () => {
-    const navigate = useNavigate()
     const location = useLocation()
     const [metaDisplay, setMetaDisplay] = useState(null)
     const [isEditorOpen, setIsEditorOpen] = useState(false)
