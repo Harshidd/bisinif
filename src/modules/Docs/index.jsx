@@ -5,6 +5,7 @@ import DocsHeader from './components/DocsHeader'
 import DocsHubPage from './pages/DocsHubPage'
 import DisciplineDocsPage from './pages/DisciplineDocsPage'
 import ParentMeetingDocsPage from './pages/ParentMeetingDocsPage'
+import DutyIncidentDocsPage from './pages/DutyIncidentDocsPage'
 import CommitteeDocsPage from './pages/CommitteeDocsPage'
 import PlansDocsPage from './pages/PlansDocsPage'
 import HomeworkDocsPage from './pages/HomeworkDocsPage'
@@ -18,6 +19,7 @@ export default function Docs() {
                     <Route path="/" element={<DocsHubPage />} />
                     <Route path="discipline" element={<DisciplineDocsPage />} />
                     <Route path="parent-meeting" element={<ParentMeetingDocsPage />} />
+                    <Route path="duty-incident" element={<DutyIncidentDocsPage />} />
                     <Route path="committee" element={<CommitteeDocsPage />} />
                     <Route path="plans" element={<PlansDocsPage />} />
                     <Route path="homework" element={<HomeworkDocsPage />} />

@@ -16,6 +16,9 @@ const KEYS = {
     // Docs-local parent meeting draft
     PARENT_MEETING_DRAFT: 'bisinif.docs.parentMeetingDraft.v1',
 
+    // Docs-local duty incident draft
+    DUTY_INCIDENT_DRAFT: 'bisinif.docs.dutyIncidentDraft.v1',
+
     // Fallback/Import Source: Global ClassManagement meta
     // Used ONLY for "Import from Class" action, never auto-sync
     GLOBAL_META: KEY_MAP.META
@@ -66,6 +69,13 @@ export const saveDisciplineDraft = (draft) => writeStorage(KEYS.DISCIPLINE_DRAFT
 export const loadParentMeetingDraft = () => readStorage(KEYS.PARENT_MEETING_DRAFT, null)
 
 export const saveParentMeetingDraft = (draft) => writeStorage(KEYS.PARENT_MEETING_DRAFT, {
+    ...draft,
+    savedAt: new Date().toISOString()
+})
+
+export const loadDutyIncidentDraft = () => readStorage(KEYS.DUTY_INCIDENT_DRAFT, null)
+
+export const saveDutyIncidentDraft = (draft) => writeStorage(KEYS.DUTY_INCIDENT_DRAFT, {
     ...draft,
     savedAt: new Date().toISOString()
 })

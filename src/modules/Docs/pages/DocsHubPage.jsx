@@ -5,7 +5,8 @@ import {
     ShieldAlert,
     CalendarDays,
     ArrowRight,
-    UsersRound
+    UsersRound,
+    ClipboardCheck
 } from 'lucide-react'
 
 const DocsHubPage = () => {
@@ -66,6 +67,27 @@ const DocsHubPage = () => {
                                 </div>
                             </div>
                             <span className="inline-flex items-center gap-2 text-sm font-semibold text-amber-700 group-hover:gap-3 transition-all">
+                                Aç
+                                <ArrowRight className="w-4 h-4" />
+                            </span>
+                        </Link>
+
+                        <Link
+                            to="duty-incident"
+                            className="group mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl border border-emerald-100 bg-emerald-50/40 hover:bg-emerald-50 hover:border-emerald-200 transition-all"
+                        >
+                            <div className="flex items-start gap-4">
+                                <span className="w-11 h-11 rounded-xl bg-white text-emerald-700 flex items-center justify-center border border-emerald-100 shadow-sm">
+                                    <ClipboardCheck className="w-5 h-5" />
+                                </span>
+                                <div>
+                                    <h2 className="text-lg font-bold text-gray-900">Olay / Nöbet Tespit Tutanağı</h2>
+                                    <p className="text-sm text-gray-500 mt-1">
+                                        Nöbet veya okul alanında gözlenen tek bir olayı kayıt altına alın.
+                                    </p>
+                                </div>
+                            </div>
+                            <span className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 group-hover:gap-3 transition-all">
                                 Aç
                                 <ArrowRight className="w-4 h-4" />
                             </span>
