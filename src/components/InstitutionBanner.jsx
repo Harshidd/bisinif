@@ -14,17 +14,26 @@ const CRITICAL_FIELDS = [
  * Merkeze girilmiş kurum verilerini tüm modüllerin üst bilgisinde göstermek için
  * kullanılan ortak read-only gösterim bandı.
  * Eksik kritik alan varsa sağ köşede mütevazı bir uyarı rozeti gösterir.
+ * 
+ * @param {Object} props
+ * @param {Object} [props.activeConfig] - Aktif bir sınav varsa onun config'i (Tek gerçeklik kaynağı)
  */
-export default function InstitutionBanner() {
+export default function InstitutionBanner({ activeConfig }) {
     const inst = loadInstitution();
 
-    if (!inst || (!inst.okulAdi && !inst.il && !inst.sinif)) {
+    const activeGradeLevel = activeConfig?.gradeLevel || inst?.sinif;
+    const activeClassSection = activeConfig?.classSection || inst?.sube;
+
+    if (!inst || (!inst.okulAdi && !inst.il && !activeGradeLevel)) {
         return null; // Hiç veri yoksa gösterme
     }
 
     const location = [inst.il, inst.ilce].filter(Boolean).join(' / ');
-    const classInfo = [inst.sinif, inst.sube ? `${inst.sube} Şubesi` : ''].filter(Boolean).join(' - ');
-    const missingFields = CRITICAL_FIELDS.filter((f) => !inst[f.key]?.trim());
+    const classInfo = [activeGradeLevel, activeClassSection ? `${activeClassSection} Şubesi` : ''].filter(Boolean).join(' - ');
+    const missingFields = CRITICAL_FIELDS.filter((f) => {
+        if (f.key === 'sinif') return !activeGradeLevel?.trim();
+        return !inst[f.key]?.trim();
+    });
 
     return (
         <div className="bg-slate-50 border-b border-gray-300 px-4 py-1 sm:px-6 lg:px-8 mb-4 shadow-sm flex items-center justify-between gap-4 min-h-[40px]">

@@ -17,6 +17,7 @@ import {
     loadWelcomeFlag,
 } from '../../storage'
 import { loadInstitution } from '../../storage/institutionStore'
+import { resetClassContext } from '../../lib/classContextReset'
 
 // Varsayılan config
 const DEFAULT_CONFIG = {
@@ -107,6 +108,9 @@ function ExamAnalysis() {
     const [students, setStudents] = useState([])
     const [grades, setGrades] = useState({})
     const [bannerMessage, setBannerMessage] = useState('')
+    // GradingTable iç state temizliği için reset sinyal key’i.
+    // Her class context reset’te +1 artar, GradingTable bunu izler.
+    const [gradeTableResetKey, setGradeTableResetKey] = useState(0)
 
     // Welcome Modal - sadece ilk açılışta göster
     const [showWelcome, setShowWelcome] = useState(() => {
@@ -259,6 +263,36 @@ function ExamAnalysis() {
         clearProjectState()
     }, [])
 
+    /**
+     * Sınıf Bağlamı Sıfırlama — MERKEZI ve MODÜLER
+     * -----------------------------------------------
+     * Sınav omurgasını (ders, sınav adı, sorular, kazanımlar,
+     * puanlama ayarları) KORUR.
+     *
+     * Temizlenenler:
+     *   - students listesi
+     *   - grades (yazılı + dinleme/konuşma + telafi dahil)
+     *   - seçili öğrenci / derived student state
+     *     (GradingTable içindeki local state, resetKey ile temizlenir)
+     *
+     * Korunanlar:
+     *   - courseType, courseName, examName, examDate
+     *   - questionCount, questions, outcomes, question-outcome mapping
+     *   - generalPassingScore, outcomeMasteryThreshold
+     *   - gradeLevel, classSection (aynı sınıf için liste değişimi)
+     */
+    const handleClassContextReset = useCallback((newClassOverride = null) => {
+        resetClassContext({
+            config,
+            setConfig,
+            setStudents,
+            setGrades,
+            newClassOverride,
+        })
+        // GradingTable iç state’ini temizlemek için sinyal gönder
+        setGradeTableResetKey((k) => k + 1)
+    }, [config])
+
     // Geri gitme fonksiyonu
     const handleBack = useCallback(() => {
         if (currentStep > 1) {
@@ -353,24 +387,8 @@ function ExamAnalysis() {
                             ))}
                         </nav>
 
-                        {/* Sağ: Yeni Analiz */}
-                        {currentStep > 1 ? (
-                            <Button
-                                onClick={() => {
-                                    if (window.confirm('Tüm veriler silinecek ve yeni bir sınav başlatılacak. Devam etmek istiyor musunuz?')) {
-                                        handleNewAnalysis()
-                                    }
-                                }}
-                                variant="ghost"
-                                size="sm"
-                                className="text-blue-600 hover:bg-blue-50"
-                            >
-                                <RotateCcw className="w-4 h-4 mr-1.5" />
-                                <span className="hidden sm:inline">Yeni Sınav</span>
-                            </Button>
-                        ) : (
-                            <div className="w-24" /> // Placeholder for alignment
-                        )}
+                        {/* Sağ: Hizalama İçin Boşluk */}
+                        <div className="w-16 sm:w-24" />
                     </div>
                 </div>
             </header>
@@ -393,8 +411,8 @@ function ExamAnalysis() {
 
             {/* Main Content */}
             <main className="flex-1">
-                {/* Global Institution Banner */}
-                <InstitutionBanner />
+                {/* Global Institution Banner - Tek Kaynak (Single Source of Truth) */}
+                <InstitutionBanner activeConfig={config} />
 
                 <div className="container mx-auto px-4 lg:px-8 py-2 md:py-4">
                     {currentStep === 1 && (
@@ -418,6 +436,8 @@ function ExamAnalysis() {
                             onGradesChange={handleGradesChange}
                             onNext={() => setCurrentStep(3)}
                             onNewAnalysis={handleNewAnalysis}
+                            onClassContextReset={handleClassContextReset}
+                            gradeTableResetKey={gradeTableResetKey}
                         />
                     )}
 

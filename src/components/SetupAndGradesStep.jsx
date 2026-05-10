@@ -4,9 +4,13 @@ import { Input } from './ui/Input'
 import { Label } from './ui/Label'
 import { Button } from './ui/Button'
 import { Alert, AlertDescription } from './ui/Alert'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, GraduationCap } from 'lucide-react'
 import StudentImporter from './StudentImporter'
 import GradingTable from './GradingTable'
+import ChangeClassModal from './ChangeClassModal'
+import OutcomeSetManager from './OutcomeSetManager'
+import ClassTemplateManager from './ClassTemplateManager'
+import ExamWorkspaceManager from './ExamWorkspaceManager'
 import { getLanguageProfile } from '../core/languageProfiles'
 
 const toNumber = (value) => {
@@ -59,6 +63,8 @@ const SetupAndGradesStep = ({
   onBack,
   onNext,
   onNewAnalysis,
+  onClassContextReset,
+  gradeTableResetKey,
 }) => {
   const [outcomeTexts, setOutcomeTexts] = useState(config.outcomes || [])
   const [outcomeCount, setOutcomeCount] = useState((config.outcomes || []).length)
@@ -66,6 +72,7 @@ const SetupAndGradesStep = ({
   const [scoringMode, setScoringMode] = useState('auto') // 'auto' or 'manual'
   const [showGradeResetWarning, setShowGradeResetWarning] = useState(false)
   const [showOutcomesPanel, setShowOutcomesPanel] = useState(false) // Mobile accordion
+  const [showChangeClassModal, setShowChangeClassModal] = useState(false)
   const lastQuestionCountRef = useRef(questions.length || 0)
 
   // Sync outcomeTexts with config.outcomes
@@ -192,16 +199,68 @@ const SetupAndGradesStep = ({
               const lp = getLanguageProfile(config.courseType, config.courseName)
               const w = lp?.weights || { yazili: 0.5, dinleme: 0.25, konusma: 0.25 }
               return (
-                <span className="text-[10px] font-medium px-2 py-1 bg-blue-50 border border-blue-200 rounded-full text-blue-600">
+                <span className="text-[10px] font-medium px-2 py-1 bg-blue-50 border border-blue-200 rounded-full text-blue-600 hidden sm:inline-block">
                   Yazılı %{Math.round(w.yazili * 100)} · Dinleme %{Math.round(w.dinleme * 100)} · Konuşma %{Math.round(w.konusma * 100)}
                 </span>
               )
             })()}
-            <div className="text-xs text-slate-500 font-medium px-3 py-1 bg-white border border-slate-200 rounded-full shadow-sm">
-              {config.courseName || 'Ders Seçilmedi'} • {config.examName || 'Sınav'} • {config.examDate ? new Date(config.examDate).toLocaleDateString('tr-TR') : ''}
+
+            <ExamWorkspaceManager
+              config={config}
+              questions={questions}
+              students={students}
+              grades={grades}
+              onLoad={(data) => {
+                onConfigChange(data.config)
+                onQuestionsChange(data.questions)
+                onStudentsChange(data.students)
+                onGradesChange(data.grades)
+              }}
+            />
+
+            {/* 1. Sınıf Bilgisi (Pasif) */}
+            <div className="flex items-center gap-1.5 text-xs text-slate-700 font-bold px-3 py-1 bg-slate-50 border border-slate-200 rounded-full shadow-sm">
+              <GraduationCap className="w-3.5 h-3.5 text-slate-500" />
+              {config.gradeLevel || 'Sınıf Yok'} {config.classSection ? `- ${config.classSection} Şubesi` : ''}
             </div>
+
+            {/* 2. Sınıf Değiştir (Aksiyon) */}
+            <button
+              type="button"
+              onClick={() => setShowChangeClassModal(true)}
+              className="text-xs font-semibold px-3 py-1 bg-white text-slate-600 hover:text-blue-700 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 rounded-full shadow-sm transition-colors whitespace-nowrap"
+            >
+              Sınıf Değiştir
+            </button>
+
+            {/* 3. Yeni Sınav Kur (Aksiyon) */}
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm('TÜM çalışma (sınav ayarları, liste, notlar) sıfırlanacak. Başa dönülecek. Emin misiniz?')) {
+                  if (onNewAnalysis) onNewAnalysis()
+                }
+              }}
+              className="text-xs font-semibold px-3 py-1 bg-white text-slate-600 hover:text-red-600 hover:bg-red-50 border border-slate-200 hover:border-red-200 rounded-full shadow-sm transition-colors whitespace-nowrap"
+            >
+              Yeni Sınav Kur
+            </button>
           </div>
         </div>
+
+        <ChangeClassModal
+          isOpen={showChangeClassModal}
+          onClose={() => setShowChangeClassModal(false)}
+          currentGradeLevel={config.gradeLevel}
+          currentClassSection={config.classSection}
+          onConfirm={(newClassData) => {
+            setShowChangeClassModal(false)
+            if (onClassContextReset) {
+              onClassContextReset(newClassData)
+            }
+          }}
+          onNewAnalysis={onNewAnalysis}
+        />
 
         <div className="p-4 grid grid-cols-1 md:grid-cols-4 gap-6 bg-white">
           {/* Kolon 1: Soru Sayısı + Geçme Puanı */}
@@ -311,6 +370,21 @@ const SetupAndGradesStep = ({
                 <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Soru - Kazanım Dağılımı</h3>
                 <p className="text-[10px] text-slate-500 mt-0.5">Önce kazanımları tanımlayınız, ardından her soruyu ilgili kazanımla aşağıdaki listeden eşleştiriniz.</p>
               </div>
+              <div className="flex items-center gap-2">
+                <OutcomeSetManager
+                  currentOutcomes={outcomeTexts}
+                  currentQuestions={questions}
+                  onLoad={({ questions: loadedQuestions, outcomes: loadedOutcomes }) => {
+                    const nextOutcomes = loadedOutcomes || []
+                    setOutcomeCount(nextOutcomes.length)
+                    setOutcomeTexts(nextOutcomes)
+                    onConfigChange({ outcomeCount: nextOutcomes.length, outcomes: nextOutcomes })
+                    
+                    const nextQuestions = loadedQuestions || []
+                    setQuestionCount(nextQuestions.length)
+                    onQuestionsChange(nextQuestions)
+                  }}
+                />
               {scoringMode === 'auto' && (
                 <Button
                   type="button"
@@ -322,6 +396,7 @@ const SetupAndGradesStep = ({
                   Puanları Eşit Dağıt (100)
                 </Button>
               )}
+              </div>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 bg-white border border-slate-200 rounded-lg max-h-[280px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 p-2">
@@ -405,8 +480,14 @@ const SetupAndGradesStep = ({
             onGradesChange(nextGrades)
           }}
           onClearStudentList={() => {
-            onStudentsChange([])
-            onGradesChange({})
+            // Merkezi sınıf bağlamı reset — sınav omurgası korunur
+            if (onClassContextReset) {
+              onClassContextReset()
+            } else {
+              // Fallback: prop gelmezse local temizlik yap
+              onStudentsChange([])
+              onGradesChange({})
+            }
           }}
           onResetGrades={() => {
             onGradesChange({})
@@ -423,13 +504,23 @@ const SetupAndGradesStep = ({
             onStudentsChange([...students, newStudent])
           }}
           showNavigation={false}
+          resetKey={gradeTableResetKey}
           importerComponent={
-            <StudentImporter
-              onImport={onStudentsChange}
-              existingStudents={students}
-              compact={true}
-              target="exam"
-            />
+            <div className="flex items-center justify-end gap-2">
+              <ClassTemplateManager
+                currentStudents={students}
+                onLoad={(templateStudents) => {
+                  if (onClassContextReset) onClassContextReset()
+                  onStudentsChange(templateStudents)
+                }}
+              />
+              <StudentImporter
+                onImport={onStudentsChange}
+                existingStudents={students}
+                compact={true}
+                target="exam"
+              />
+            </div>
           }
         />
       </div>
