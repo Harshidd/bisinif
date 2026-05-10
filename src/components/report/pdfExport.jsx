@@ -165,9 +165,15 @@ export const exportItemAnalysisPDF = async ({ analysis, config }) => {
  * ÖZET DURUM PDF (Soru Analizi Dahil)
  */
 export const exportSummaryPDF = async ({ analysis, config, questions }) => {
+    const enrichedAnalysis = {
+        ...analysis,
+        questions: questions ?? analysis?.questions ?? analysis?.questionStats ?? []
+    };
+
     const doc = (
         <Document title={`Özet Rapor - ${composeClassName(config)}`}>
-            <SummaryAndAnalysisPage analysis={analysis} config={config} />
+            <SummaryAndAnalysisPage analysis={enrichedAnalysis} config={config} />
+            <ItemAnalysisPage analysis={enrichedAnalysis} config={config} />
         </Document>
     );
     const blob = await pdf(doc).toBlob();

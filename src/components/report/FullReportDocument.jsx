@@ -4,6 +4,7 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, Svg, Rect, Line, G } from "@react-pdf/renderer";
 import './fonts'; // Font kaydı
+import { loadInstitution } from '../../storage/institutionStore';
 import {
     chunk,
     sortStudentsByNo,
@@ -209,10 +210,14 @@ const styles = StyleSheet.create({
 // ============================================
 
 const Header = ({ title, config }) => {
+    const inst = loadInstitution() || {};
     // Sınıf bilgisini gradeLevel + classSection'dan oluştur
     const className = [config?.gradeLevel, config?.classSection ? `${config.classSection} Şubesi` : ''].filter(Boolean).join(' ');
     // İl/İlçe bilgisi
-    const location = [config?.city, config?.district].filter(Boolean).join(' / ');
+    const city = config?.city || inst.il;
+    const district = config?.district || inst.ilce;
+    const location = [city, district].filter(Boolean).join(' / ');
+    const schoolName = config?.schoolName || inst.okulAdi;
 
     return (
         <View style={styles.header}>
@@ -221,7 +226,7 @@ const Header = ({ title, config }) => {
                 <Text style={styles.subtitle}>BiSınıf Sınav Analiz Sistemi</Text>
             </View>
             <View style={{ alignItems: "flex-end" }}>
-                <Text style={styles.subtitle}>{safeText(config?.schoolName)}</Text>
+                <Text style={styles.subtitle}>{safeText(schoolName)}</Text>
                 {location ? <Text style={styles.subtitle}>{location}</Text> : null}
                 <Text style={styles.subtitle}>{formatDate(config?.examDate ?? config?.date)}</Text>
             </View>
@@ -230,8 +235,10 @@ const Header = ({ title, config }) => {
 };
 
 const Footer = ({ config }) => {
+    const inst = loadInstitution() || {};
     const className = [config?.gradeLevel, config?.classSection ? `${config.classSection} Şubesi` : ''].filter(Boolean).join(' ');
-    const label = [safeText(config?.schoolName, 'BiSınıf'), className].filter(Boolean).join(' • ');
+    const schoolName = config?.schoolName || inst.okulAdi;
+    const label = [safeText(schoolName, 'BiSınıf'), className].filter(Boolean).join(' • ');
     return (
         <View style={styles.footer} fixed>
             <Text style={styles.footerText}>{label}</Text>
@@ -500,21 +507,28 @@ export const SummaryAndAnalysisPage = ({ analysis, config }) => {
         : (Array.isArray(analysis?.questions) ? analysis.questions : []);
     const configOutcomes = Array.isArray(config?.outcomes) ? config.outcomes : [];
 
+    const inst = loadInstitution() || {};
+    const city = config?.city || inst.il;
+    const district = config?.district || inst.ilce;
+    const schoolName = config?.schoolName || inst.okulAdi;
+    const teacherName = config?.teacherName || inst.ogretmenAdi;
+    const principalName = config?.principalName || inst.mudurAdi;
+
     return (
         <Page size="A4" style={styles.page}>
             <Header title="Sınav Analiz Raporu" config={config} />
 
             {/* Meta Bilgiler */}
             <View style={styles.metaRow}>
-                {(config?.city || config?.district) && (
+                {(city || district) && (
                     <View style={styles.metaBox}>
                         <Text style={styles.metaLabel}>İL / İLÇE</Text>
-                        <Text style={styles.metaValue}>{[config?.city, config?.district].filter(Boolean).join(' / ')}</Text>
+                        <Text style={styles.metaValue}>{[city, district].filter(Boolean).join(' / ')}</Text>
                     </View>
                 )}
                 <View style={styles.metaBox}>
                     <Text style={styles.metaLabel}>OKUL</Text>
-                    <Text style={styles.metaValue}>{safeText(config?.schoolName)}</Text>
+                    <Text style={styles.metaValue}>{safeText(schoolName)}</Text>
                 </View>
                 <View style={styles.metaBox}>
                     <Text style={styles.metaLabel}>SINIF</Text>
@@ -526,12 +540,12 @@ export const SummaryAndAnalysisPage = ({ analysis, config }) => {
                 </View>
                 <View style={styles.metaBox}>
                     <Text style={styles.metaLabel}>ÖĞRETMEN</Text>
-                    <Text style={styles.metaValue}>{safeText(config?.teacherName)}</Text>
+                    <Text style={styles.metaValue}>{safeText(teacherName)}</Text>
                 </View>
-                {config?.principalName && (
+                {principalName && (
                     <View style={styles.metaBox}>
                         <Text style={styles.metaLabel}>MÜDÜR</Text>
-                        <Text style={styles.metaValue}>{safeText(config?.principalName)}</Text>
+                        <Text style={styles.metaValue}>{safeText(principalName)}</Text>
                     </View>
                 )}
                 <View style={styles.metaBox}>
@@ -1104,6 +1118,7 @@ export default function FullReportDocument({ analysis, config, questions }) {
             <SummaryAndAnalysisPage analysis={enrichedAnalysis} config={config} />
             <ClassListPages analysis={enrichedAnalysis} config={config} />
             <OutcomeSuccessPage analysis={enrichedAnalysis} config={config} />
+            <ItemAnalysisPage analysis={enrichedAnalysis} config={config} />
             {/* Öğrenci karneleri ayrı sekmeden indirilecek */}
         </Document>
     );
