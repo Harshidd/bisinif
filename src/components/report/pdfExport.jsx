@@ -167,7 +167,7 @@ export const exportItemAnalysisPDF = async ({ analysis, config }) => {
 export const exportSummaryPDF = async ({ analysis, config, questions }) => {
     const enrichedAnalysis = {
         ...analysis,
-        questions: questions ?? analysis?.questions ?? analysis?.questionStats ?? []
+        questions: analysis?.questions ?? analysis?.questionStats ?? questions ?? []
     };
 
     const doc = (

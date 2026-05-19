@@ -1069,7 +1069,10 @@ export const ItemAnalysisPage = ({ analysis, config }) => {
                     const globalIdx = pageIdx * ROWS_PER_PAGE + i + 1;
                     const maxScore = toNum(q?.maxScore, 10);
                     const avgScore = toNum(q?.avgScore, 0);
-                    const difficulty = maxScore > 0 ? (avgScore / maxScore) * 100 : 0;
+                    // Use difficulty from analysis if available, otherwise fallback to calculation
+                    const difficulty = q?.difficulty !== undefined 
+                        ? toNum(q.difficulty, 0) 
+                        : (maxScore > 0 ? (avgScore / maxScore) * 100 : 0);
 
                     let diffText = "Orta";
                     let diffColor = colors.warning;
@@ -1110,7 +1113,7 @@ export const ItemAnalysisPage = ({ analysis, config }) => {
 export default function FullReportDocument({ analysis, config, questions }) {
     const enrichedAnalysis = {
         ...analysis,
-        questions: questions ?? analysis?.questions ?? analysis?.questionStats ?? []
+        questions: analysis?.questions ?? analysis?.questionStats ?? questions ?? []
     };
 
     return (
