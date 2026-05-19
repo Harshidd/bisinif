@@ -15,12 +15,12 @@ import { loadInstitution } from '../../storage/institutionStore';
 const generateSafeFileName = (config, reportType, studentName = null) => {
     const inst = loadInstitution() || {};
     
-    // Fallback logic
-    const school = (inst.okulAdi || config?.schoolName || 'Okul').trim();
+    // Fallback logic (Tek Kaynak: config > inst)
+    const school = (config?.schoolName || inst.okulAdi || 'Okul').trim();
     
     // Class Info: "5" + "A" -> "5A"
-    const grade = (inst.sinif || config?.gradeLevel || '').replace(/\D/g, '');
-    let section = (inst.sube || config?.classSection || '').trim();
+    const grade = (config?.gradeLevel || inst.sinif || '').replace(/\D/g, '');
+    let section = (config?.classSection || inst.sube || '').trim();
     if (section.toLowerCase().includes('sube')) section = section.split(' ')[0];
     const classInfo = grade || section ? `${grade}${section}` : 'Sinif';
     
@@ -165,9 +165,15 @@ export const exportItemAnalysisPDF = async ({ analysis, config }) => {
  * ÖZET DURUM PDF (Soru Analizi Dahil)
  */
 export const exportSummaryPDF = async ({ analysis, config, questions }) => {
+    const enrichedAnalysis = {
+        ...analysis,
+        questions: analysis?.questions ?? analysis?.questionStats ?? questions ?? []
+    };
+
     const doc = (
         <Document title={`Özet Rapor - ${composeClassName(config)}`}>
-            <SummaryAndAnalysisPage analysis={analysis} config={config} />
+            <SummaryAndAnalysisPage analysis={enrichedAnalysis} config={config} />
+            <ItemAnalysisPage analysis={enrichedAnalysis} config={config} />
         </Document>
     );
     const blob = await pdf(doc).toBlob();

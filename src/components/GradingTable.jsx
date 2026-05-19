@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Input } from './ui/Input'
 import { Button } from './ui/Button'
 import { Alert, AlertDescription } from './ui/Alert'
-import { AlertTriangle, AlertCircle, Zap, Trash2, Plus, LayoutGrid, List, ClipboardList, X, Check } from 'lucide-react'
+import { AlertTriangle, AlertCircle, Zap, Trash2, Plus, LayoutGrid, List, Clipboard, X, Check } from 'lucide-react'
 import { getLanguageProfile } from '../core/languageProfiles'
 
 // Helper for integer-only distribution logic
@@ -56,7 +56,7 @@ const distributeIntegerTotal = (total, maxScores) => {
   return scores
 }
 
-const GradingTable = ({ config, questions = [], students, grades: existingGrades, onGradesChange, onStudentUpdate, onDeleteStudent, onAddStudent, onClearStudentList, onResetGrades, onNewAnalysis, onNext, onBack, showNavigation = true, importerComponent }) => {
+const GradingTable = ({ config, questions = [], students, grades: existingGrades, onGradesChange, onStudentUpdate, onDeleteStudent, onAddStudent, onClearStudentList, onResetGrades, onNewAnalysis, onNext, onBack, showNavigation = true, importerComponent, resetKey }) => {
   const [grades, setGrades] = useState({})
   const [warnings, setWarnings] = useState({})
   const [totalInputWarnings, setTotalInputWarnings] = useState({})
@@ -64,6 +64,20 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
   const [viewMode, setViewMode] = useState('table') // 'table' or 'card'
   const [showClearMenu, setShowClearMenu] = useState(false)
   const [remedialStudent, setRemedialStudent] = useState(null)
+
+  // Sınıf Bağlamı Reset: resetKey değiştiğinde tüm internal state'i temizle.
+  // Bu, "Sınıf Listesini Temizle" aksiyonunun GradingTable içindeki
+  // tüm izleri (uyarılar, telafi seçimleri, toplam giriş değerleri)
+  // güvenli şekilde silmesini garanti eder.
+  useEffect(() => {
+    if (resetKey === undefined || resetKey === null) return
+    setGrades({})
+    setWarnings({})
+    setTotalInputWarnings({})
+    setTotalInputValues({})
+    setRemedialStudent(null)
+    setShowClearMenu(false)
+  }, [resetKey])
 
   const isLanguage = config?.courseType === 'Dil Dersi'
   const langProfile = isLanguage ? getLanguageProfile(config.courseType, config.courseName) : null
@@ -694,7 +708,7 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
                               className={`flex items-center justify-center gap-1 w-full max-w-[4rem] px-1 py-1 text-[10px] font-medium rounded transition-all border ${(grades[student.id]?.__telafiSecimleri?.length > 0 || grades[student.id]?.__telafiNotu) ? 'border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100' : 'border-slate-200 bg-white text-slate-500 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 shadow-sm'}`}
                               title={((grades[student.id]?.__telafiSecimleri?.length > 0 || grades[student.id]?.__telafiNotu) ? 'Telafi notlarını düzenle' : 'Telafi çalışması ekle')}
                             >
-                              <ClipboardList className="w-3.5 h-3.5 shrink-0" />
+                              <Clipboard className="w-3.5 h-3.5 shrink-0" />
                               <span className="truncate">{(grades[student.id]?.__telafiSecimleri?.length > 0 || grades[student.id]?.__telafiNotu) ? 'Notlar' : 'Ekle'}</span>
                             </button>
                           </div>
@@ -907,7 +921,7 @@ const GradingTable = ({ config, questions = [], students, grades: existingGrades
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/50">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
-                  <ClipboardList className="w-5 h-5" />
+                  <Clipboard className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-800 leading-tight">Telafi Çalışmaları</h3>
